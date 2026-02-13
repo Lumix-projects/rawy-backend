@@ -54,7 +54,7 @@ export class User {
   @Prop({ required: true, default: false })
   emailVerified!: boolean;
 
-  @Prop({ type: String, default: null, sparse: true, unique: true })
+  @Prop({ type: String, default: null })
   googleId!: string | null;
 
   @Prop({ type: CreatorProfileSchema, default: null })
@@ -63,4 +63,8 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// email, username, googleId indexes created by @Prop({ unique: true }) / @Prop({ unique: true, sparse: true })
+// Partial unique index: only enforces uniqueness when googleId is a real string (not null).
+UserSchema.index(
+  { googleId: 1 },
+  { unique: true, partialFilterExpression: { googleId: { $type: 'string' } } },
+);

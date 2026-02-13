@@ -64,8 +64,11 @@ function createRedisWithErrorHandler(
     }),
     BullModule.forRootAsync({
       useFactory: (config: ConfigService) => {
+        const raw = config.get('REDIS_URL', '');
         const redisUrl =
-          config.get('REDIS_URL') || 'redis://localhost:6379';
+          raw && raw !== 'memory' && !raw.startsWith('skip')
+            ? raw
+            : 'redis://localhost:6379';
         return {
           redis: redisUrl,
           createClient: (type: string) =>

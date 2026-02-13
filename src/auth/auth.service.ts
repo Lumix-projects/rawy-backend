@@ -102,11 +102,20 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    await this.verificationEmailQueue.add('send', {
-      to: user.email,
-      token: plainToken,
-      baseUrl,
-    });
+    try {
+      await this.verificationEmailQueue.add('send', {
+        to: user.email,
+        token: plainToken,
+        baseUrl,
+      });
+    } catch (err) {
+      this.logger.warn({
+        event: 'auth.register.email_queue_failed',
+        flow: 'listener',
+        userId: user._id.toString(),
+        error: (err as Error).message,
+      });
+    }
 
     this.logger.log({
       event: 'auth.register',
@@ -179,11 +188,20 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    await this.verificationEmailQueue.add('send', {
-      to: user.email,
-      token: plainToken,
-      baseUrl,
-    });
+    try {
+      await this.verificationEmailQueue.add('send', {
+        to: user.email,
+        token: plainToken,
+        baseUrl,
+      });
+    } catch (err) {
+      this.logger.warn({
+        event: 'auth.register.email_queue_failed',
+        flow: 'creator',
+        userId: user._id.toString(),
+        error: (err as Error).message,
+      });
+    }
 
     this.logger.log({
       event: 'auth.register',
@@ -221,11 +239,19 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    await this.passwordResetEmailQueue.add('send', {
-      to: user.email,
-      token: plainToken,
-      baseUrl,
-    });
+    try {
+      await this.passwordResetEmailQueue.add('send', {
+        to: user.email,
+        token: plainToken,
+        baseUrl,
+      });
+    } catch (err) {
+      this.logger.warn({
+        event: 'auth.forgot_password.email_queue_failed',
+        userId: user._id.toString(),
+        error: (err as Error).message,
+      });
+    }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
