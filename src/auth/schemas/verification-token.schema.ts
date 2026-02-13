@@ -21,5 +21,5 @@ export class VerificationToken {
 export const VerificationTokenSchema =
   SchemaFactory.createForClass(VerificationToken);
 
-VerificationTokenSchema.index({ token: 1 }, { unique: true });
+// token index created by @Prop({ unique: true })
 VerificationTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL

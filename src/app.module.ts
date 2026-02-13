@@ -15,6 +15,22 @@ import { UploadModule } from './upload/upload.module';
 import { EmailModule } from './common/email/email.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
+function createRedisWithErrorHandler(
+  url: string,
+  type?: string,
+): Redis {
+  // Bull requires bclient/subscriber to have maxRetriesPerRequest: null, enableReadyCheck: false
+  const opts =
+    type === 'subscriber' || type === 'bclient'
+      ? { maxRetriesPerRequest: null, enableReadyCheck: false }
+      : { maxRetriesPerRequest: 3, retryStrategy: () => null as number | null };
+  const redis = new Redis(url, opts);
+  redis.on('error', () => {
+    // Suppress unhandled ECONNREFUSED spam when Redis is not running
+  });
+  return redis;
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -26,22 +42,36 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     }),
     ThrottlerModule.forRootAsync({
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get('REDIS_URL', 'redis://localhost:6379');
+        const redisUrl = config.get('REDIS_URL', '');
+        const useRedis =
+          redisUrl &&
+          redisUrl !== 'memory' &&
+          !redisUrl.startsWith('skip');
         return {
           throttlers: [
             { ttl: 60000, limit: 100 },
             { name: 'login', ttl: 60000, limit: 5 },
             { name: 'auth-sensitive', ttl: 3600000, limit: 3 },
           ],
-          storage: new ThrottlerStorageRedisService(new Redis(redisUrl)),
+          storage: useRedis
+            ? new ThrottlerStorageRedisService(
+                createRedisWithErrorHandler(redisUrl),
+              )
+            : undefined, // In-memory when Redis disabled
         };
       },
       inject: [ConfigService],
     }),
     BullModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
-        redis: config.get('REDIS_URL', 'redis://localhost:6379'),
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisUrl =
+          config.get('REDIS_URL') || 'redis://localhost:6379';
+        return {
+          redis: redisUrl,
+          createClient: (type: string) =>
+            createRedisWithErrorHandler(redisUrl, type),
+        };
+      },
       inject: [ConfigService],
     }),
     AuthModule,
