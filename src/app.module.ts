@@ -12,7 +12,16 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { UploadModule } from './upload/upload.module';
+import { PodcastsModule } from './podcasts/podcasts.module';
+import { EpisodesModule } from './episodes/episodes.module';
+import { DiscoveryModule } from './discovery/discovery.module';
+import { PlaybackModule } from './playback/playback.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PlaylistsModule } from './playlists/playlists.module';
 import { EmailModule } from './common/email/email.module';
+import { SharedUploadModule } from './shared/upload/upload.module';
+import { RateLimitModule } from './shared/rate-limit/rate-limit.module';
+import { QueueModule } from './shared/queue/queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 function createRedisWithErrorHandler(
@@ -81,7 +90,16 @@ function createRedisWithErrorHandler(
     UsersModule,
     CategoriesModule,
     UploadModule,
+    SharedUploadModule,
+    RateLimitModule,
+    QueueModule,
     EmailModule,
+    PodcastsModule,
+    EpisodesModule,
+    DiscoveryModule,
+    PlaybackModule,
+    SubscriptionsModule,
+    PlaylistsModule,
   ],
   controllers: [AppController],
   providers: [

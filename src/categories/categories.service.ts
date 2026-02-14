@@ -1,7 +1,12 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Category, CategoryDocument } from './schemas/category.schema';
+import { CreateCategoryDto } from './dto/create-category.dto';
 
 const INITIAL_CATEGORIES = [
   { slug: 'music', name: 'Music' },
@@ -39,5 +44,26 @@ export class CategoriesService implements OnModuleInit {
 
   async findBySlug(slug: string): Promise<CategoryDocument | null> {
     return this.categoryModel.findOne({ slug }).exec();
+  }
+
+  async create(dto: CreateCategoryDto): Promise<CategoryDocument> {
+    const slug = this.normalizeSlug(dto.slug);
+    const name = dto.name.trim();
+
+    const existingBySlug = await this.findBySlug(slug);
+    if (existingBySlug) {
+      throw new ConflictException('Category slug already exists');
+    }
+
+    const existingByName = await this.categoryModel.findOne({ name }).exec();
+    if (existingByName) {
+      throw new ConflictException('Category name already exists');
+    }
+
+    return this.categoryModel.create({ slug, name });
+  }
+
+  private normalizeSlug(rawSlug: string): string {
+    return rawSlug.trim().toLowerCase();
   }
 }

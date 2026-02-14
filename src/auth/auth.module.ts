@@ -14,6 +14,8 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailVerifiedGuard } from './guards/email-verified.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { CreatorRoleGuard } from './guards/creator-role.guard';
+import { ListenerOrCreatorGuard } from './guards/listener-creator.guard';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../common/email/email.module';
 import { CategoriesModule } from '../categories/categories.module';
@@ -70,7 +72,17 @@ export const THROTTLE_AUTH_SENSITIVE = { ttl: 3600000, limit: 3 };
     JwtAuthGuard,
     EmailVerifiedGuard,
     RolesGuard,
+    CreatorRoleGuard,
+    ListenerOrCreatorGuard,
   ],
-  exports: [AuthService, JwtModule, JwtAuthGuard, EmailVerifiedGuard, RolesGuard],
+  exports: [
+    AuthService,
+    JwtModule,
+    JwtAuthGuard,
+    EmailVerifiedGuard,
+    RolesGuard,
+    CreatorRoleGuard,
+    ListenerOrCreatorGuard,
+  ],
 })
 export class AuthModule {}

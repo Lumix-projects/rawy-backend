@@ -1,0 +1,196 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  NotFoundException,
+  Header,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
+import { Types } from 'mongoose';
+import { Public } from '../auth/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreatorRoleGuard } from '../auth/guards/creator-role.guard';
+import { PodcastsService } from './podcasts.service';
+import { EpisodesService } from '../episodes/episodes.service';
+import { RssService } from './rss/rss.service';
+import { CreatePodcastDto } from './dto/create-podcast.dto';
+import { UpdatePodcastDto } from './dto/update-podcast.dto';
+import { UserDocument } from '../users/schemas/user.schema';
+
+function toPodcastResponse(doc: {
+  _id: Types.ObjectId;
+  title: string;
+  description?: string | null;
+  coverUrl: string;
+  language: string;
+  tags: string[];
+  status: string;
+  explicit: boolean;
+  episodeOrder: string;
+  websiteUrl?: string | null;
+  ownerId: Types.ObjectId;
+  categoryId: { slug: string; name: string } | Types.ObjectId;
+  subcategoryId?: { slug: string; name: string } | Types.ObjectId | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}, baseUrl: string) {
+  const category = doc.categoryId && typeof doc.categoryId === 'object'
+    ? { id: (doc.categoryId as { _id: Types.ObjectId })._id?.toString(), slug: (doc.categoryId as { slug: string }).slug, name: (doc.categoryId as { name: string }).name }
+    : undefined;
+  const subcategory = doc.subcategoryId && typeof doc.subcategoryId === 'object' && doc.subcategoryId
+    ? { id: (doc.subcategoryId as { _id: Types.ObjectId })._id?.toString(), slug: (doc.subcategoryId as { slug: string }).slug, name: (doc.subcategoryId as { name: string }).name }
+    : undefined;
+
+  return {
+    id: doc._id.toString(),
+    title: doc.title,
+    description: doc.description,
+    category: category ? { id: category.id, slug: category.slug, name: category.name } : undefined,
+    subcategory: subcategory ? { id: subcategory.id, slug: subcategory.slug, name: subcategory.name } : undefined,
+    coverUrl: doc.coverUrl,
+    language: doc.language,
+    tags: doc.tags,
+    status: doc.status,
+    explicit: doc.explicit,
+    episodeOrder: doc.episodeOrder,
+    websiteUrl: doc.websiteUrl,
+    ownerId: doc.ownerId.toString(),
+    rssUrl: `${baseUrl}/podcasts/${doc._id}/rss`,
+    episodeCount: 0,
+    subscriberCount: 0,
+    createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? new Date().toISOString(),
+    updatedAt: (doc as { updatedAt?: Date }).updatedAt?.toISOString() ?? new Date().toISOString(),
+  };
+}
+
+@Controller('podcasts')
+export class PodcastsController {
+  private readonly baseUrl: string;
+
+  constructor(
+    private readonly podcastsService: PodcastsService,
+    private readonly episodesService: EpisodesService,
+    private readonly rssService: RssService,
+  ) {
+    const port = process.env.PORT ?? '3000';
+    this.baseUrl = process.env.API_BASE_URL ?? `http://localhost:${port}/api/v1`;
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, CreatorRoleGuard)
+  @UseInterceptors(
+    FileInterceptor('cover', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async create(
+    @Req() req: Request & { user: UserDocument },
+    @Body() dto: CreatePodcastDto,
+    @UploadedFile() cover?: Express.Multer.File,
+  ) {
+    const doc = await this.podcastsService.create({
+      dto,
+      ownerId: req.user._id,
+      cover: cover
+        ? { buffer: cover.buffer, mimetype: cover.mimetype, size: cover.size }
+        : undefined,
+    });
+    return toPodcastResponse(doc, this.baseUrl);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, CreatorRoleGuard)
+  async listMyPodcasts(
+    @Req() req: Request & { user: UserDocument },
+    @Query('status') status?: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    const { items, total } = await this.podcastsService.findAllByOwner(
+      req.user._id,
+      {
+        status: status && ['draft', 'published', 'archived'].includes(status) ? status : undefined,
+        limit: limit ? Math.min(Number(limit), 100) : 20,
+        offset: offset ? Number(offset) : 0,
+      },
+    );
+    return {
+      items: items.map((doc) => toPodcastResponse(doc, this.baseUrl)),
+      total,
+    };
+  }
+
+  @Get(':podcastId')
+  @Public()
+  async getById(@Param('podcastId') podcastId: string) {
+    const doc = await this.podcastsService.findByIdOrThrow(podcastId);
+    if (doc.status !== 'published') {
+      throw new NotFoundException('Podcast not found');
+    }
+    return toPodcastResponse(doc, this.baseUrl);
+  }
+
+  @Patch(':podcastId')
+  @UseGuards(JwtAuthGuard, CreatorRoleGuard)
+  @UseInterceptors(
+    FileInterceptor('cover', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async update(
+    @Req() req: Request & { user: UserDocument },
+    @Param('podcastId') podcastId: string,
+    @Body() dto: UpdatePodcastDto,
+    @UploadedFile() cover?: Express.Multer.File,
+  ) {
+    const doc = await this.podcastsService.update(podcastId, req.user._id, {
+      dto,
+      cover: cover
+        ? { buffer: cover.buffer, mimetype: cover.mimetype, size: cover.size }
+        : undefined,
+    });
+    this.rssService.invalidateCache(podcastId);
+    return toPodcastResponse(doc, this.baseUrl);
+  }
+
+  @Delete(':podcastId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, CreatorRoleGuard)
+  async delete(
+    @Req() req: Request & { user: UserDocument },
+    @Param('podcastId') podcastId: string,
+  ) {
+    await this.podcastsService.delete(podcastId, req.user._id);
+    this.rssService.invalidateCache(podcastId);
+  }
+
+  @Get(':podcastId/rss')
+  @Public()
+  @Header('Content-Type', 'application/rss+xml; charset=utf-8')
+  async getRss(@Param('podcastId') podcastId: string): Promise<string> {
+    const podcast = await this.podcastsService.findPublishedById(podcastId);
+    if (!podcast) {
+      throw new NotFoundException('Podcast not found');
+    }
+
+    const episodes = await this.episodesService.findPublishedByPodcast(podcastId);
+    const items = episodes.map((ep) => ({
+      title: ep.title,
+      description: ep.description ?? undefined,
+      audioUrl: ep.audioUrl,
+      audioLength: 0,
+      publishedAt: ep.publishedAt ?? (ep as { createdAt?: Date }).createdAt ?? new Date(),
+      guid: ep._id.toString(),
+      duration: ep.duration,
+    }));
+    return this.rssService.generateFeed(podcast, items);
+  }
+}
