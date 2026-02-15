@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -12,6 +12,7 @@ export interface SendMailOptions {
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private transporter: Transporter | null = null;
 
   constructor(private readonly configService: ConfigService) {
@@ -24,6 +25,15 @@ export class EmailService {
     const user = this.configService.get('SMTP_USER');
     const pass = this.configService.get('SMTP_PASS');
 
+    const isPlaceholder = !pass || pass === 'your-app-password' || !user || user === 'your-email@gmail.com';
+    if (isPlaceholder) {
+      this.logger.warn(
+        'SMTP not configured. Set SMTP_USER and SMTP_PASS in .env with real credentials. Emails will not be sent.',
+      );
+      this.transporter = null;
+      return;
+    }
+
     if (host && user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
@@ -31,6 +41,7 @@ export class EmailService {
         secure: port === 465,
         auth: { user, pass },
       });
+      this.logger.log(`SMTP ready (${host}:${port})`);
     } else {
       this.transporter = null;
     }
@@ -38,6 +49,9 @@ export class EmailService {
 
   async send(options: SendMailOptions): Promise<boolean> {
     if (!this.transporter) {
+      this.logger.warn(
+        `SMTP not configured. Email not sent. To: ${options.to}, Subject: ${options.subject}`,
+      );
       return false;
     }
 
@@ -51,24 +65,37 @@ export class EmailService {
         html: options.html,
         text: options.text,
       });
+      this.logger.log(`Email sent to ${options.to}`);
       return true;
-    } catch {
+    } catch (err) {
+      this.logger.error(`Email send failed to ${options.to}: ${(err as Error).message}`);
       return false;
     }
   }
 
   async sendVerificationEmail(to: string, token: string, baseUrl: string): Promise<boolean> {
     const link = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    if (!this.transporter) {
+      this.logger.warn(`SMTP not configured. Verification token for ${to}: ${token}`);
+    }
+    const tokenLine = `Your verification token: ${token}`;
     return this.send({
       to,
       subject: 'Verify your email - Rawi',
-      html: `<p>Please verify your email by clicking: <a href="${link}">${link}</a></p>`,
-      text: `Please verify your email by visiting: ${link}`,
+      html: [
+        `<p>Please verify your email by clicking: <a href="${link}">Verify my email</a></p>`,
+        `<p><strong>${tokenLine}</strong></p>`,
+        '<p>Or copy the token above and paste it in the app.</p>',
+      ].join(''),
+      text: `Please verify your email by visiting: ${link}\n\n${tokenLine}\n\nOr copy the token and paste it in the app.`,
     });
   }
 
   async sendPasswordResetEmail(to: string, token: string, baseUrl: string): Promise<boolean> {
     const link = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    if (!this.transporter) {
+      this.logger.warn(`SMTP not configured. Reset token for ${to}: ${token}`);
+    }
     return this.send({
       to,
       subject: 'Reset your password - Rawi',

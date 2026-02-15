@@ -31,6 +31,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokenPairDto } from './dto/token-pair.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
@@ -89,6 +90,16 @@ export class AuthController {
         : undefined,
     );
     return toUserResponse(user);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ 'auth-sensitive': { limit: 5, ttl: 3600000 } })
+  @ApiOperation({ summary: 'Resend verification email' })
+  @ApiResponse({ status: 200, description: 'Email sent if user exists and not verified' })
+  @ApiResponse({ status: 429, description: 'Wait 2 minutes before requesting again' })
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    await this.authService.resendVerificationEmail(dto.email);
   }
 
   @Post('verify-email')
