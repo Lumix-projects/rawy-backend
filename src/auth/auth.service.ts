@@ -4,6 +4,8 @@ import {
   ConflictException,
   BadRequestException,
   UnauthorizedException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { InjectQueue } from '@nestjs/bull';
@@ -26,10 +28,12 @@ import { PASSWORD_RESET_EMAIL_QUEUE } from './processors/password-reset.processo
 import { CategoriesService } from '../categories/categories.service';
 import { S3UploadService } from '../upload/upload.service';
 import { RefreshTokenService } from './refresh-token.service';
+import { EmailService } from '../common/email/email.service';
 
 const SALT_ROUNDS = 12;
 const TOKEN_EXPIRY_HOURS = 24;
 const PASSWORD_RESET_EXPIRY_HOURS = 1;
+const RESEND_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
 
 export interface TokenPairResponse {
   accessToken: string;
@@ -40,6 +44,7 @@ export interface TokenPairResponse {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly lastResendByEmail = new Map<string, number>();
 
   constructor(
     private readonly usersRepository: UsersRepository,
@@ -48,6 +53,7 @@ export class AuthService {
     private readonly s3UploadService: S3UploadService,
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly emailService: EmailService,
     @InjectModel(VerificationToken.name)
     private readonly verificationTokenModel: Model<VerificationTokenDocument>,
     @InjectQueue(VERIFICATION_EMAIL_QUEUE)
@@ -58,6 +64,24 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private async sendVerificationEmail(
+    to: string,
+    token: string,
+    baseUrl: string,
+    flow: string,
+  ): Promise<void> {
+    try {
+      await this.verificationEmailQueue.add('send', { to, token, baseUrl });
+    } catch (err) {
+      this.logger.warn({
+        event: 'auth.register.email_queue_failed',
+        flow,
+        error: (err as Error).message,
+      });
+      await this.emailService.sendVerificationEmail(to, token, baseUrl);
+    }
   }
 
   async registerListener(dto: RegisterListenerDto): Promise<UserDocument> {
@@ -102,20 +126,7 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    try {
-      await this.verificationEmailQueue.add('send', {
-        to: user.email,
-        token: plainToken,
-        baseUrl,
-      });
-    } catch (err) {
-      this.logger.warn({
-        event: 'auth.register.email_queue_failed',
-        flow: 'listener',
-        userId: user._id.toString(),
-        error: (err as Error).message,
-      });
-    }
+    await this.sendVerificationEmail(user.email, plainToken, baseUrl, 'listener');
 
     this.logger.log({
       event: 'auth.register',
@@ -188,20 +199,7 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    try {
-      await this.verificationEmailQueue.add('send', {
-        to: user.email,
-        token: plainToken,
-        baseUrl,
-      });
-    } catch (err) {
-      this.logger.warn({
-        event: 'auth.register.email_queue_failed',
-        flow: 'creator',
-        userId: user._id.toString(),
-        error: (err as Error).message,
-      });
-    }
+    await this.sendVerificationEmail(user.email, plainToken, baseUrl, 'creator');
 
     this.logger.log({
       event: 'auth.register',
@@ -249,6 +247,7 @@ export class AuthService {
         userId: user._id.toString(),
         error: (err as Error).message,
       });
+      await this.emailService.sendPasswordResetEmail(user.email, plainToken, baseUrl);
     }
   }
 
@@ -284,6 +283,52 @@ export class AuthService {
     await this.verificationTokenModel.deleteOne({
       _id: verificationToken._id,
     });
+  }
+
+  async resendVerificationEmail(email: string): Promise<void> {
+    const emailLower = email.toLowerCase().trim();
+    const now = Date.now();
+    const last = this.lastResendByEmail.get(emailLower);
+    if (last && now - last < RESEND_COOLDOWN_MS) {
+      const waitSec = Math.ceil((RESEND_COOLDOWN_MS - (now - last)) / 1000);
+      throw new HttpException(
+        `Please wait ${waitSec} seconds before requesting again`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.usersRepository.findByEmail(emailLower);
+    if (!user) {
+      throw new BadRequestException('No account found with this email');
+    }
+    if (user.emailVerified) {
+      throw new BadRequestException('This email is already verified');
+    }
+
+    await this.verificationTokenModel.deleteMany({
+      userId: user._id,
+      type: 'email_verification',
+    });
+
+    const plainToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(plainToken);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + TOKEN_EXPIRY_HOURS);
+
+    await this.verificationTokenModel.create({
+      userId: user._id,
+      type: 'email_verification',
+      token: tokenHash,
+      expiresAt,
+    });
+
+    const baseUrl = this.configService.get(
+      'FRONTEND_BASE_URL',
+      'http://localhost:8081',
+    );
+    // إرسال للإيميل الذي أدخله المستخدم
+    await this.sendVerificationEmail(emailLower, plainToken, baseUrl, 'resend');
+    this.lastResendByEmail.set(emailLower, now);
   }
 
   async verifyEmail(token: string): Promise<UserDocument> {
