@@ -66,6 +66,10 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  private generateOtp(): string {
+    return crypto.randomInt(100000, 999999).toString();
+  }
+
   private async sendVerificationEmail(
     to: string,
     token: string,
@@ -110,8 +114,8 @@ export class AuthService {
       emailVerified: false,
     });
 
-    const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(plainToken);
+    const otp = this.generateOtp();
+    const tokenHash = this.hashToken(otp);
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + TOKEN_EXPIRY_HOURS);
 
@@ -126,7 +130,7 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    await this.sendVerificationEmail(user.email, plainToken, baseUrl, 'listener');
+    await this.sendVerificationEmail(user.email, otp, baseUrl, 'listener');
 
     this.logger.log({
       event: 'auth.register',
@@ -183,8 +187,8 @@ export class AuthService {
       },
     });
 
-    const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(plainToken);
+    const otp = this.generateOtp();
+    const tokenHash = this.hashToken(otp);
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + TOKEN_EXPIRY_HOURS);
 
@@ -199,7 +203,7 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    await this.sendVerificationEmail(user.email, plainToken, baseUrl, 'creator');
+    await this.sendVerificationEmail(user.email, otp, baseUrl, 'creator');
 
     this.logger.log({
       event: 'auth.register',
@@ -219,8 +223,8 @@ export class AuthService {
       return;
     }
 
-    const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(plainToken);
+    const otp = this.generateOtp();
+    const tokenHash = this.hashToken(otp);
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + PASSWORD_RESET_EXPIRY_HOURS);
 
@@ -238,7 +242,7 @@ export class AuthService {
     try {
       await this.passwordResetEmailQueue.add('send', {
         to: user.email,
-        token: plainToken,
+        token: otp,
         baseUrl,
       });
     } catch (err) {
@@ -247,16 +251,17 @@ export class AuthService {
         userId: user._id.toString(),
         error: (err as Error).message,
       });
-      await this.emailService.sendPasswordResetEmail(user.email, plainToken, baseUrl);
+      await this.emailService.sendPasswordResetEmail(user.email, otp, baseUrl);
     }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    if (!token || token.trim().length === 0) {
-      throw new BadRequestException('Invalid or expired token');
+    const otp = token?.trim().replace(/\D/g, '') ?? '';
+    if (otp.length !== 6) {
+      throw new BadRequestException('Please enter the 6-digit OTP from your email');
     }
 
-    const tokenHash = this.hashToken(token.trim());
+    const tokenHash = this.hashToken(otp);
     const verificationToken = await this.verificationTokenModel
       .findOne({
         token: tokenHash,
@@ -310,8 +315,8 @@ export class AuthService {
       type: 'email_verification',
     });
 
-    const plainToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(plainToken);
+    const otp = this.generateOtp();
+    const tokenHash = this.hashToken(otp);
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + TOKEN_EXPIRY_HOURS);
 
@@ -326,17 +331,17 @@ export class AuthService {
       'FRONTEND_BASE_URL',
       'http://localhost:8081',
     );
-    // إرسال للإيميل الذي أدخله المستخدم
-    await this.sendVerificationEmail(emailLower, plainToken, baseUrl, 'resend');
+    await this.sendVerificationEmail(emailLower, otp, baseUrl, 'resend');
     this.lastResendByEmail.set(emailLower, now);
   }
 
   async verifyEmail(token: string): Promise<UserDocument> {
-    if (!token || token.trim().length === 0) {
-      throw new BadRequestException('Invalid or expired token');
+    const otp = token?.trim().replace(/\D/g, '') ?? '';
+    if (otp.length !== 6) {
+      throw new BadRequestException('Please enter the 6-digit OTP from your email');
     }
 
-    const tokenHash = this.hashToken(token.trim());
+    const tokenHash = this.hashToken(otp);
     const verificationToken = await this.verificationTokenModel
       .findOne({
         token: tokenHash,

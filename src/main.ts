@@ -1,3 +1,10 @@
+import * as path from 'path';
+import { config } from 'dotenv';
+
+// Load .env before any module initializes (ensures SMTP etc. are available)
+config({ path: path.resolve(process.cwd(), '.env') });
+config({ path: path.resolve(process.cwd(), 'backend', '.env') });
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { getConnectionToken } from '@nestjs/mongoose';

@@ -20,10 +20,10 @@ export class EmailService {
   }
 
   private initTransporter() {
-    const host = this.configService.get('SMTP_HOST');
-    const port = this.configService.get<number>('SMTP_PORT', 587);
-    const user = this.configService.get('SMTP_USER');
-    const pass = this.configService.get('SMTP_PASS');
+    const host = this.configService.get('SMTP_HOST') ?? process.env.SMTP_HOST;
+    const port = Number(this.configService.get('SMTP_PORT') ?? process.env.SMTP_PORT ?? 587);
+    const user = this.configService.get('SMTP_USER') ?? process.env.SMTP_USER;
+    const pass = this.configService.get('SMTP_PASS') ?? process.env.SMTP_PASS;
 
     const isPlaceholder = !pass || pass === 'your-app-password' || !user || user === 'your-email@gmail.com';
     if (isPlaceholder) {
@@ -75,40 +75,43 @@ export class EmailService {
 
   async sendVerificationEmail(
     to: string,
-    token: string,
-    baseUrl: string,
+    otp: string,
+    _baseUrl: string,
   ): Promise<boolean> {
-    const link = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     if (!this.transporter) {
-      this.logger.warn(`SMTP not configured. Verification token for ${to}: ${token}`);
+      this.logger.warn(`SMTP not configured. Verification OTP for ${to}: ${otp}`);
     }
-    const tokenLine = `Your verification token: ${token}`;
     return this.send({
       to,
-      subject: 'Verify your email - Rawi',
+      subject: 'Verify your email - Rawy',
       html: [
-        `<p>Please verify your email by clicking: <a href="${link}">Verify my email</a></p>`,
-        `<p><strong>${tokenLine}</strong></p>`,
-        '<p>Or copy the token above and paste it in the app.</p>',
+        '<p>Your email verification code is:</p>',
+        `<p style="font-size:28px;font-weight:bold;letter-spacing:8px;margin:24px 0;">${otp}</p>`,
+        '<p>Enter this 6-digit OTP in the app to verify your email.</p>',
+        '<p>This code expires in 24 hours.</p>',
       ].join(''),
-      text: `Please verify your email by visiting: ${link}\n\n${tokenLine}\n\nOr copy the token and paste it in the app.`,
+      text: `Your verification code: ${otp}\n\nEnter this 6-digit OTP in the app. This code expires in 24 hours.`,
     });
   }
 
   async sendPasswordResetEmail(
     to: string,
-    token: string,
-    baseUrl: string,
+    otp: string,
+    _baseUrl: string,
   ): Promise<boolean> {
-    const link = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
     if (!this.transporter) {
-      this.logger.warn(`SMTP not configured. Reset token for ${to}: ${token}`);
+      this.logger.warn(`SMTP not configured. Reset OTP for ${to}: ${otp}`);
     }
     return this.send({
       to,
-      subject: 'Reset your password - Rawi',
-      html: `<p>Reset your password by clicking: <a href="${link}">${link}</a></p><p>This link expires in 1 hour.</p>`,
-      text: `Reset your password by visiting: ${link}. This link expires in 1 hour.`,
+      subject: 'Reset your password - Rawy',
+      html: [
+        '<p>Your password reset code is:</p>',
+        `<p style="font-size:28px;font-weight:bold;letter-spacing:8px;margin:24px 0;">${otp}</p>`,
+        '<p>Enter this 6-digit OTP in the app to reset your password.</p>',
+        '<p>This code expires in 1 hour.</p>',
+      ].join(''),
+      text: `Your password reset code: ${otp}\n\nEnter this 6-digit OTP in the app. This code expires in 1 hour.`,
     });
   }
 }
