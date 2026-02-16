@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model, Types } from 'mongoose';
 import * as crypto from 'node:crypto';
-import { RefreshToken, RefreshTokenDocument } from './schemas/refresh-token.schema';
+import {
+  RefreshToken,
+  RefreshTokenDocument,
+} from './schemas/refresh-token.schema';
 import { UserDocument } from '../users/schemas/user.schema';
 import { UsersRepository } from '../users/users.repository';
 
@@ -90,7 +93,7 @@ export class RefreshTokenService {
     await this.refreshTokenModel.deleteOne({ _id: stored._id });
 
     const newTokenPair = await this.create(
-      user._id as Types.ObjectId,
+      user._id,
       stored.deviceInfo ?? undefined,
     );
 

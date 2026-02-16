@@ -57,7 +57,11 @@ export class EmailService {
     }
   }
 
-  async sendVerificationEmail(to: string, token: string, baseUrl: string): Promise<boolean> {
+  async sendVerificationEmail(
+    to: string,
+    token: string,
+    baseUrl: string,
+  ): Promise<boolean> {
     const link = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     return this.send({
       to,
@@ -67,7 +71,11 @@ export class EmailService {
     });
   }
 
-  async sendPasswordResetEmail(to: string, token: string, baseUrl: string): Promise<boolean> {
+  async sendPasswordResetEmail(
+    to: string,
+    token: string,
+    baseUrl: string,
+  ): Promise<boolean> {
     const link = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
     return this.send({
       to,

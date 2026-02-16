@@ -33,9 +33,17 @@ export class UpdatePodcastDto {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : value.split(',').map((s: string) => s.trim()).filter(Boolean);
+        return Array.isArray(parsed)
+          ? parsed
+          : value
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean);
       } catch {
-        return value.split(',').map((s: string) => s.trim()).filter(Boolean);
+        return value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
       }
     }
     return value;

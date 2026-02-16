@@ -30,8 +30,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     try {
       const displayName =
         profile.displayName ??
-        (profile as { name?: { givenName?: string; familyName?: string } })
-          .name?.givenName ??
+        (profile as { name?: { givenName?: string; familyName?: string } }).name
+          ?.givenName ??
         (profile as { name?: { familyName?: string } }).name?.familyName;
       const user = await this.authService.validateOrCreateUserFromGoogle(
         profile.id,

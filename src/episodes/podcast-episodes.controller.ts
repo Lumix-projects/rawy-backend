@@ -24,7 +24,10 @@ import { EpisodeDocument } from './schemas/episode.schema';
 
 const MAX_AUDIO_SIZE = 500 * 1024 * 1024;
 
-function toEpisodeResponse(doc: EpisodeDocument, podcastCoverUrl?: string | null) {
+function toEpisodeResponse(
+  doc: EpisodeDocument,
+  podcastCoverUrl?: string | null,
+) {
   const cover = doc.coverUrl ?? podcastCoverUrl;
   const pid = doc.podcastId;
   const podcastIdStr =
@@ -45,7 +48,9 @@ function toEpisodeResponse(doc: EpisodeDocument, podcastCoverUrl?: string | null
     transcription: doc.transcription,
     status: doc.status,
     publishedAt: doc.publishedAt?.toISOString() ?? null,
-    createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? new Date().toISOString(),
+    createdAt:
+      (doc as { createdAt?: Date }).createdAt?.toISOString() ??
+      new Date().toISOString(),
   };
 }
 
@@ -108,11 +113,18 @@ export class PodcastEpisodesController {
     @Query('offset') offset?: string,
   ) {
     await this.podcastsService.findByIdOrThrow(podcastId);
-    const { items, total } = await this.episodesService.findAllByPodcast(podcastId, {
-      status: status && ['draft', 'scheduled', 'published', 'archived'].includes(status) ? status : undefined,
-      limit: limit ? Math.min(Number(limit), 100) : 20,
-      offset: offset ? Number(offset) : 0,
-    });
+    const { items, total } = await this.episodesService.findAllByPodcast(
+      podcastId,
+      {
+        status:
+          status &&
+          ['draft', 'scheduled', 'published', 'archived'].includes(status)
+            ? status
+            : undefined,
+        limit: limit ? Math.min(Number(limit), 100) : 20,
+        offset: offset ? Number(offset) : 0,
+      },
+    );
 
     const podcast = await this.podcastsService.findById(podcastId);
     const podcastCoverUrl = podcast?.coverUrl ?? null;

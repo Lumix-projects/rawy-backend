@@ -1,12 +1,14 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Category, CategoryDocument } from './schemas/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 const INITIAL_CATEGORIES = [
   { slug: 'music', name: 'Music' },
@@ -24,7 +26,8 @@ const INITIAL_CATEGORIES = [
 @Injectable()
 export class CategoriesService implements OnModuleInit {
   constructor(
-    @InjectModel(Category.name) private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
   ) {}
 
   async onModuleInit() {
@@ -61,6 +64,66 @@ export class CategoriesService implements OnModuleInit {
     }
 
     return this.categoryModel.create({ slug, name });
+  }
+
+  async update(
+    id: string,
+    dto: UpdateCategoryDto,
+  ): Promise<CategoryDocument> {
+    const doc = await this.categoryModel.findById(id).exec();
+    if (!doc) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const updates: Record<string, unknown> = {};
+
+    if (dto.name !== undefined) {
+      const name = dto.name.trim();
+      updates.name = name;
+      const existingByName = await this.categoryModel
+        .findOne({ name, _id: { $ne: new Types.ObjectId(id) } })
+        .exec();
+      if (existingByName) {
+        throw new ConflictException('Category name already exists');
+      }
+    }
+
+    if (dto.slug !== undefined) {
+      const slug = this.normalizeSlug(dto.slug);
+      updates.slug = slug;
+      const existingBySlug = await this.categoryModel
+        .findOne({ slug, _id: { $ne: new Types.ObjectId(id) } })
+        .exec();
+      if (existingBySlug) {
+        throw new ConflictException('Category slug already exists');
+      }
+    }
+
+    if (dto.parentId !== undefined) {
+      updates.parentId = dto.parentId
+        ? new Types.ObjectId(dto.parentId)
+        : null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return doc;
+    }
+
+    const updated = await this.categoryModel
+      .findByIdAndUpdate(id, { $set: updates }, { returnDocument: 'after' })
+      .exec();
+    if (!updated) {
+      throw new NotFoundException('Category not found');
+    }
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    const doc = await this.categoryModel.findById(id).exec();
+    if (!doc) {
+      throw new NotFoundException('Category not found');
+    }
+    await this.categoryModel.findByIdAndDelete(id).exec();
   }
 
   private normalizeSlug(rawSlug: string): string {

@@ -32,7 +32,8 @@ export class PodcastsService {
   private readonly logger = new Logger(PodcastsService.name);
 
   constructor(
-    @InjectModel(Podcast.name) private readonly podcastModel: Model<PodcastDocument>,
+    @InjectModel(Podcast.name)
+    private readonly podcastModel: Model<PodcastDocument>,
     private readonly categoriesService: CategoriesService,
     private readonly coverUploadService: CoverUploadService,
     @Inject(forwardRef(() => EpisodesService))
@@ -61,7 +62,9 @@ export class PodcastsService {
 
     const uploadResult = await this.coverUploadService.uploadCover(cover);
     if (!uploadResult) {
-      throw new BadRequestException('Cover upload failed. S3 may not be configured.');
+      throw new BadRequestException(
+        'Cover upload failed. S3 may not be configured.',
+      );
     }
 
     const status = dto.status ?? 'draft';
@@ -80,7 +83,9 @@ export class PodcastsService {
       websiteUrl: dto.websiteUrl?.trim() || null,
     });
 
-    this.logger.log(`Podcast created id=${doc._id} ownerId=${ownerId} title=${dto.title}`);
+    this.logger.log(
+      `Podcast created id=${doc._id} ownerId=${ownerId} title=${dto.title}`,
+    );
     return doc;
   }
 
@@ -142,7 +147,9 @@ export class PodcastsService {
       }
     }
     if (dto.subcategoryId) {
-      const subcategory = await this.categoriesService.findById(dto.subcategoryId);
+      const subcategory = await this.categoriesService.findById(
+        dto.subcategoryId,
+      );
       if (!subcategory) {
         throw new BadRequestException('Invalid subcategoryId');
       }
@@ -151,15 +158,20 @@ export class PodcastsService {
     const updates: Record<string, unknown> = {};
 
     if (dto.title !== undefined) updates.title = dto.title.trim();
-    if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
-    if (dto.categoryId !== undefined) updates.categoryId = new Types.ObjectId(dto.categoryId);
+    if (dto.description !== undefined)
+      updates.description = dto.description?.trim() || null;
+    if (dto.categoryId !== undefined)
+      updates.categoryId = new Types.ObjectId(dto.categoryId);
     if (dto.subcategoryId !== undefined) {
-      updates.subcategoryId = dto.subcategoryId ? new Types.ObjectId(dto.subcategoryId) : null;
+      updates.subcategoryId = dto.subcategoryId
+        ? new Types.ObjectId(dto.subcategoryId)
+        : null;
     }
     if (dto.tags !== undefined) updates.tags = dto.tags;
     if (dto.explicit !== undefined) updates.explicit = dto.explicit;
     if (dto.episodeOrder !== undefined) updates.episodeOrder = dto.episodeOrder;
-    if (dto.websiteUrl !== undefined) updates.websiteUrl = dto.websiteUrl?.trim() || null;
+    if (dto.websiteUrl !== undefined)
+      updates.websiteUrl = dto.websiteUrl?.trim() || null;
 
     if (cover) {
       const uploadResult = await this.coverUploadService.uploadCover(cover);
@@ -196,7 +208,10 @@ export class PodcastsService {
     return updated;
   }
 
-  async delete(id: string | Types.ObjectId, ownerId: Types.ObjectId): Promise<void> {
+  async delete(
+    id: string | Types.ObjectId,
+    ownerId: Types.ObjectId,
+  ): Promise<void> {
     const doc = await this.findByIdOrThrow(id);
     if (!doc.ownerId.equals(ownerId)) {
       throw new ForbiddenException('Not the owner of this podcast');
@@ -206,9 +221,25 @@ export class PodcastsService {
     this.logger.log(`Podcast deleted id=${id}`);
   }
 
-  async findPublishedById(id: string | Types.ObjectId): Promise<PodcastDocument | null> {
+  async findPublishedById(
+    id: string | Types.ObjectId,
+  ): Promise<PodcastDocument | null> {
     return this.podcastModel
       .findOne({ _id: id, status: 'published' })
+      .populate('categoryId', 'slug name')
+      .populate('subcategoryId', 'slug name')
+      .exec();
+  }
+
+  async findByIds(
+    ids: Types.ObjectId[],
+    status?: 'draft' | 'published' | 'archived',
+  ): Promise<PodcastDocument[]> {
+    if (ids.length === 0) return [];
+    const filter: Record<string, unknown> = { _id: { $in: ids } };
+    if (status) filter.status = status;
+    return this.podcastModel
+      .find(filter)
       .populate('categoryId', 'slug name')
       .populate('subcategoryId', 'slug name')
       .exec();

@@ -52,7 +52,10 @@ export class CategoriesController {
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Admin role required' })
-  @ApiResponse({ status: 409, description: 'Category slug or name already exists' })
+  @ApiResponse({
+    status: 409,
+    description: 'Category slug or name already exists',
+  })
   async create(@Body() dto: CreateCategoryDto) {
     const category = await this.categoriesService.create(dto);
     return toCategoryResponse(category);

@@ -52,7 +52,10 @@ export class Episode {
   })
   chapterMarkers!: ChapterMarker[];
 
-  @Prop({ required: true, enum: ['draft', 'scheduled', 'published', 'archived'] })
+  @Prop({
+    required: true,
+    enum: ['draft', 'scheduled', 'published', 'archived'],
+  })
   status!: EpisodeStatus;
 
   @Prop({ type: Date, default: null })

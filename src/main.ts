@@ -4,9 +4,12 @@ import { getConnectionToken } from '@nestjs/mongoose';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Connection } from 'mongoose';
 import { AppModule } from './app.module';
+import { requestLoggerMiddleware } from './common/request-logger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(requestLoggerMiddleware);
 
   // Fix stale unique index on googleId.
   // Drop ANY existing googleId index and recreate with partialFilterExpression

@@ -76,12 +76,11 @@ export class UsersController {
     @UploadedFile() avatar?: Express.Multer.File,
   ) {
     const creatorInput: { showName?: string; categoryId?: string } | undefined =
-      req.user.creatorProfile && req.user.role === 'creator'
-        ? {}
-        : undefined;
+      req.user.creatorProfile && req.user.role === 'creator' ? {} : undefined;
     if (creatorInput) {
       if (dto.showName !== undefined) creatorInput.showName = dto.showName;
-      if (dto.categoryId !== undefined) creatorInput.categoryId = dto.categoryId;
+      if (dto.categoryId !== undefined)
+        creatorInput.categoryId = dto.categoryId;
     }
 
     const user = await this.usersService.updateProfile(
@@ -120,7 +119,10 @@ export class UsersController {
     description: 'Upgraded to creator',
     type: UserResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Already Creator or missing fields' })
+  @ApiResponse({
+    status: 400,
+    description: 'Already Creator or missing fields',
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 403, description: 'Not a Listener' })
   async upgradeCreator(

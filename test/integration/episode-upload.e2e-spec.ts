@@ -32,13 +32,19 @@ describe('Episode Upload (Integration)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/ep.jpg', key: 'covers/ep.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/ep.jpg',
+            key: 'covers/ep.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(AudioUploadService)
       .useValue({
         uploadAudio: () =>
-          Promise.resolve({ url: 'https://example.com/audio/integration.mp3', key: 'episodes/int.mp3' }),
+          Promise.resolve({
+            url: 'https://example.com/audio/integration.mp3',
+            key: 'episodes/int.mp3',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(UploadRateLimitService)
@@ -86,7 +92,10 @@ describe('Episode Upload (Integration)', () => {
 
     creatorToken = jwtService.sign(
       { sub: creatorId, email: 'creator@test.com' },
-      { secret: configService.get('JWT_SECRET', 'change-me-in-production'), expiresIn: '15m' },
+      {
+        secret: configService.get('JWT_SECRET', 'change-me-in-production'),
+        expiresIn: '15m',
+      },
     );
 
     const createPodcastRes = await request(app.getHttpServer())
@@ -95,7 +104,10 @@ describe('Episode Upload (Integration)', () => {
       .field('title', 'Episode Upload Test Podcast')
       .field('categoryId', categoryId)
       .field('language', 'en')
-      .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' })
+      .attach('cover', Buffer.from('fake'), {
+        filename: 'cover.jpg',
+        contentType: 'image/jpeg',
+      })
       .expect(201);
 
     podcastId = createPodcastRes.body.id;
@@ -119,7 +131,10 @@ describe('Episode Upload (Integration)', () => {
       .field('description', 'Show notes for integration test')
       .field('duration', '300')
       .field('status', 'draft')
-      .attach('audio', Buffer.from('fake mp3'), { filename: 'ep.mp3', contentType: 'audio/mpeg' })
+      .attach('audio', Buffer.from('fake mp3'), {
+        filename: 'ep.mp3',
+        contentType: 'audio/mpeg',
+      })
       .expect(201);
 
     episodeId = createRes.body.id;
@@ -132,7 +147,9 @@ describe('Episode Upload (Integration)', () => {
       .query({ status: 'draft' })
       .expect(200);
 
-    expect(listDraftRes.body.items.some((ep: { id: string }) => ep.id === episodeId)).toBe(true);
+    expect(
+      listDraftRes.body.items.some((ep: { id: string }) => ep.id === episodeId),
+    ).toBe(true);
 
     const patchRes = await request(app.getHttpServer())
       .patch(`/api/v1/episodes/${episodeId}`)
@@ -147,7 +164,11 @@ describe('Episode Upload (Integration)', () => {
       .query({ status: 'published' })
       .expect(200);
 
-    expect(listPublishedRes.body.items.some((ep: { id: string }) => ep.id === episodeId)).toBe(true);
+    expect(
+      listPublishedRes.body.items.some(
+        (ep: { id: string }) => ep.id === episodeId,
+      ),
+    ).toBe(true);
 
     const getRes = await request(app.getHttpServer())
       .get(`/api/v1/episodes/${episodeId}`)

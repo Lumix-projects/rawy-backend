@@ -84,14 +84,20 @@ export class AudioUploadService {
     }
   }
 
-  async getPresignedStreamUrl(urlOrKey: string, expiresInSeconds = 3600): Promise<string | null> {
+  async getPresignedStreamUrl(
+    urlOrKey: string,
+    expiresInSeconds = 3600,
+  ): Promise<string | null> {
     if (!this.client || !this.bucket) return null;
     const key = this.urlOrKeyToKey(urlOrKey);
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 
-  async getPresignedDownloadUrl(urlOrKey: string, expiresInSeconds = 3600): Promise<string | null> {
+  async getPresignedDownloadUrl(
+    urlOrKey: string,
+    expiresInSeconds = 3600,
+  ): Promise<string | null> {
     if (!this.client || !this.bucket) return null;
     const key = this.urlOrKeyToKey(urlOrKey);
     const command = new GetObjectCommand({
@@ -116,9 +122,7 @@ export class AudioUploadService {
       );
     }
     if (file.size > MAX_FILE_SIZE) {
-      throw new BadRequestException(
-        'File too large. Maximum size: 500MB',
-      );
+      throw new BadRequestException('File too large. Maximum size: 500MB');
     }
   }
 

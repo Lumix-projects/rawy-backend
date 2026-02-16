@@ -22,14 +22,21 @@ export class UserResponseDto {
   bio!: string | null;
 
   @ApiPropertyOptional({ nullable: true })
-  socialLinks!: { website?: string; twitter?: string; instagram?: string } | null;
+  socialLinks!: {
+    website?: string;
+    twitter?: string;
+    instagram?: string;
+  } | null;
 
   @ApiProperty()
   emailVerified!: boolean;
 
   @ApiPropertyOptional({
     nullable: true,
-    properties: { showName: { type: 'string' }, categoryId: { type: 'string' } },
+    properties: {
+      showName: { type: 'string' },
+      categoryId: { type: 'string' },
+    },
   })
   creatorProfile!: { showName: string; categoryId: string } | null;
 
@@ -79,6 +86,7 @@ export function toUserResponse(user: UserDocument): UserResponse {
           categoryId: user.creatorProfile.category,
         }
       : null,
-    createdAt: (user as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+    createdAt:
+      (user as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
   };
 }

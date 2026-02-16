@@ -16,11 +16,17 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ListenerOrCreatorGuard } from '../auth/guards/listener-creator.guard';
 import { PlaybackService } from './playback.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
+import { PutQueueDto } from './dto/put-queue.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 
 @Controller()
 export class PlaybackController {
   constructor(private readonly playbackService: PlaybackService) {}
+
+  @Get('episodes/:episodeId/share-link')
+  async getShareLink(@Param('episodeId') episodeId: string) {
+    return this.playbackService.getShareLink(episodeId);
+  }
 
   @Get('episodes/:episodeId/stream-url')
   @UseGuards(JwtAuthGuard, ListenerOrCreatorGuard)
@@ -73,8 +79,31 @@ export class PlaybackController {
     const ids = Array.isArray(episodeIds)
       ? episodeIds
       : typeof episodeIds === 'string'
-        ? episodeIds.split(',').map((s) => s.trim()).filter(Boolean)
+        ? episodeIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [];
     return this.playbackService.getProgress(req.user._id, ids);
+  }
+
+  @Get('playback/queue')
+  @UseGuards(JwtAuthGuard, ListenerOrCreatorGuard)
+  async getQueue(@Req() req: Request & { user: UserDocument }) {
+    const episodeIds = await this.playbackService.getQueue(req.user._id);
+    return { episodeIds };
+  }
+
+  @Put('playback/queue')
+  @UseGuards(JwtAuthGuard, ListenerOrCreatorGuard)
+  async putQueue(
+    @Req() req: Request & { user: UserDocument },
+    @Body() body: PutQueueDto,
+  ) {
+    const episodeIds = await this.playbackService.putQueue(
+      req.user._id,
+      body.episodeIds,
+    );
+    return { episodeIds };
   }
 }

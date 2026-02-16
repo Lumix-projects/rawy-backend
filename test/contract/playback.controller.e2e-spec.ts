@@ -31,18 +31,28 @@ describe('Playback Controller (Contract)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/playback.jpg', key: 'covers/playback.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/playback.jpg',
+            key: 'covers/playback.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(AudioUploadService)
       .useValue({
         uploadAudio: () =>
-          Promise.resolve({ url: 'https://example.com/audio/playback-ep.mp3', key: 'episodes/playback-ep.mp3' }),
+          Promise.resolve({
+            url: 'https://example.com/audio/playback-ep.mp3',
+            key: 'episodes/playback-ep.mp3',
+          }),
         deleteByKey: () => Promise.resolve(),
         getPresignedStreamUrl: (key: string) =>
-          Promise.resolve(`https://presigned.example.com/stream/${key}?expires=3600`),
+          Promise.resolve(
+            `https://presigned.example.com/stream/${key}?expires=3600`,
+          ),
         getPresignedDownloadUrl: (key: string) =>
-          Promise.resolve(`https://presigned.example.com/download/${key}?expires=3600`),
+          Promise.resolve(
+            `https://presigned.example.com/download/${key}?expires=3600`,
+          ),
       })
       .overrideProvider(UploadRateLimitService)
       .useValue({
@@ -115,7 +125,10 @@ describe('Playback Controller (Contract)', () => {
       .field('title', 'Playback Test Podcast')
       .field('categoryId', categoryId)
       .field('language', 'en')
-      .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' });
+      .attach('cover', Buffer.from('fake'), {
+        filename: 'cover.jpg',
+        contentType: 'image/jpeg',
+      });
     podcastId = createPodcastRes.body.id;
 
     await request(app.getHttpServer())
@@ -128,7 +141,10 @@ describe('Playback Controller (Contract)', () => {
       .set('Authorization', `Bearer ${creatorToken}`)
       .field('title', 'Playback Episode')
       .field('duration', '600')
-      .attach('audio', Buffer.from('fake'), { filename: 'ep.mp3', contentType: 'audio/mpeg' });
+      .attach('audio', Buffer.from('fake'), {
+        filename: 'ep.mp3',
+        contentType: 'audio/mpeg',
+      });
     episodeId = createEpisodeRes.body.id;
 
     await request(app.getHttpServer())
@@ -240,6 +256,63 @@ describe('Playback Controller (Contract)', () => {
       await request(app.getHttpServer())
         .post(`/api/v1/episodes/${episodeId}/record-play`)
         .send({ listenedSeconds: 30 })
+        .expect(401);
+    });
+  });
+
+  describe('GET /playback/queue', () => {
+    it('returns 200 with episodeIds when authenticated', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/playback/queue')
+        .set('Authorization', `Bearer ${listenerToken}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('episodeIds');
+      expect(Array.isArray(res.body.episodeIds)).toBe(true);
+    });
+
+    it('returns 401 when no token', async () => {
+      await request(app.getHttpServer())
+        .get('/api/v1/playback/queue')
+        .expect(401);
+    });
+  });
+
+  describe('PUT /playback/queue', () => {
+    it('returns 200 with episodeIds when setting queue', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/v1/playback/queue')
+        .set('Authorization', `Bearer ${listenerToken}`)
+        .send({ episodeIds: [episodeId] })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('episodeIds');
+      expect(Array.isArray(res.body.episodeIds)).toBe(true);
+      expect(res.body.episodeIds).toContain(episodeId);
+    });
+
+    it('returns 200 with empty array when clearing queue', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/v1/playback/queue')
+        .set('Authorization', `Bearer ${listenerToken}`)
+        .send({ episodeIds: [] })
+        .expect(200);
+
+      expect(res.body.episodeIds).toEqual([]);
+    });
+
+    it('returns 400 when episodeIds is not valid', async () => {
+      await request(app.getHttpServer())
+        .put('/api/v1/playback/queue')
+        .set('Authorization', `Bearer ${listenerToken}`)
+        .send({ episodeIds: ['not-a-valid-mongo-id'] })
+        .expect(400);
+    });
+
+    it('returns 401 when no token', async () => {
+      await request(app.getHttpServer())
+        .put('/api/v1/playback/queue')
+        .send({ episodeIds: [episodeId] })
         .expect(401);
     });
   });

@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class CreateCategoryDto {
   @ApiProperty({
@@ -18,7 +24,8 @@ export class CreateCategoryDto {
     example: 'history',
     minLength: 2,
     maxLength: 50,
-    description: 'Unique URL-friendly slug (lowercase letters, numbers, hyphens)',
+    description:
+      'Unique URL-friendly slug (lowercase letters, numbers, hyphens)',
   })
   @IsString()
   @IsNotEmpty({ message: 'Category slug is required' })

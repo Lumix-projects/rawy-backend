@@ -59,11 +59,28 @@ export class UsersService {
       updates.bio = input.bio.trim() || null;
     }
 
-    if (input.website !== undefined || input.twitter !== undefined || input.instagram !== undefined) {
-      const socialLinks: { website?: string; twitter?: string; instagram?: string } = {};
-      socialLinks.website = input.website !== undefined ? (input.website.trim() || undefined) : user.socialLinks?.website;
-      socialLinks.twitter = input.twitter !== undefined ? (input.twitter.trim() || undefined) : user.socialLinks?.twitter;
-      socialLinks.instagram = input.instagram !== undefined ? (input.instagram.trim() || undefined) : user.socialLinks?.instagram;
+    if (
+      input.website !== undefined ||
+      input.twitter !== undefined ||
+      input.instagram !== undefined
+    ) {
+      const socialLinks: {
+        website?: string;
+        twitter?: string;
+        instagram?: string;
+      } = {};
+      socialLinks.website =
+        input.website !== undefined
+          ? input.website.trim() || undefined
+          : user.socialLinks?.website;
+      socialLinks.twitter =
+        input.twitter !== undefined
+          ? input.twitter.trim() || undefined
+          : user.socialLinks?.twitter;
+      socialLinks.instagram =
+        input.instagram !== undefined
+          ? input.instagram.trim() || undefined
+          : user.socialLinks?.instagram;
       updates.socialLinks = socialLinks;
     }
 
@@ -77,7 +94,9 @@ export class UsersService {
         updates['creatorProfile.showName'] = creatorInput.showName.trim();
       }
       if (creatorInput.categoryId !== undefined) {
-        const category = await this.categoriesService.findById(creatorInput.categoryId);
+        const category = await this.categoriesService.findById(
+          creatorInput.categoryId,
+        );
         if (!category) {
           throw new BadRequestException('Invalid category');
         }

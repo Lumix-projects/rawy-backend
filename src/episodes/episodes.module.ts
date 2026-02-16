@@ -1,4 +1,3 @@
-import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Episode, EpisodeSchema } from './schemas/episode.schema';
 import { EpisodesService } from './episodes.service';
@@ -8,6 +7,9 @@ import { PodcastsModule } from '../podcasts/podcasts.module';
 import { SharedUploadModule } from '../shared/upload/upload.module';
 import { RateLimitModule } from '../shared/rate-limit/rate-limit.module';
 import { QueueModule } from '../shared/queue/queue.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { Module, forwardRef } from '@nestjs/common';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { ScheduleEpisodesProcessor } from './jobs/schedule-episodes.processor';
 
 @Module({
@@ -17,6 +19,8 @@ import { ScheduleEpisodesProcessor } from './jobs/schedule-episodes.processor';
     SharedUploadModule,
     RateLimitModule,
     QueueModule,
+    NotificationsModule,
+    forwardRef(() => SubscriptionsModule),
   ],
   controllers: [EpisodesController, PodcastEpisodesController],
   providers: [EpisodesService, ScheduleEpisodesProcessor],

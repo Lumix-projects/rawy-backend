@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -36,8 +36,13 @@ export class UploadRateLimitService {
 
     if (count > this.limitPerDay) {
       await this.redis.decr(key); // Rollback the increment
-      throw new ForbiddenException(
-        `Upload limit exceeded. Maximum ${this.limitPerDay} uploads per day.`,
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: `Upload limit exceeded. Maximum ${this.limitPerDay} uploads per day.`,
+          error: 'Too Many Requests',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
   }

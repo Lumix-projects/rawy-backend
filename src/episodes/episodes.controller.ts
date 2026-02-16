@@ -21,7 +21,10 @@ import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 import { EpisodeDocument } from './schemas/episode.schema';
 
-function toEpisodeResponse(doc: EpisodeDocument, podcastCoverUrl?: string | null) {
+function toEpisodeResponse(
+  doc: EpisodeDocument,
+  podcastCoverUrl?: string | null,
+) {
   const cover = doc.coverUrl ?? podcastCoverUrl;
   const pid = doc.podcastId;
   const podcastIdStr =
@@ -42,7 +45,9 @@ function toEpisodeResponse(doc: EpisodeDocument, podcastCoverUrl?: string | null
     transcription: doc.transcription,
     status: doc.status,
     publishedAt: doc.publishedAt?.toISOString() ?? null,
-    createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? new Date().toISOString(),
+    createdAt:
+      (doc as { createdAt?: Date }).createdAt?.toISOString() ??
+      new Date().toISOString(),
   };
 }
 

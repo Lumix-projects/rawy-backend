@@ -31,13 +31,19 @@ describe('Episodes Controller (Contract)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/test.jpg', key: 'covers/test.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/test.jpg',
+            key: 'covers/test.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(AudioUploadService)
       .useValue({
         uploadAudio: () =>
-          Promise.resolve({ url: 'https://example.com/audio/ep1.mp3', key: 'episodes/ep1.mp3' }),
+          Promise.resolve({
+            url: 'https://example.com/audio/ep1.mp3',
+            key: 'episodes/ep1.mp3',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(UploadRateLimitService)
@@ -66,7 +72,10 @@ describe('Episodes Controller (Contract)', () => {
 
     let cat = await categories.findOne({ slug: 'tech' });
     if (!cat) {
-      const ins = await categories.insertOne({ slug: 'tech', name: 'Technology' });
+      const ins = await categories.insertOne({
+        slug: 'tech',
+        name: 'Technology',
+      });
       cat = await categories.findOne({ _id: ins.insertedId });
     }
     categoryId = cat!._id.toString();
@@ -85,7 +94,10 @@ describe('Episodes Controller (Contract)', () => {
 
     creatorToken = jwtService.sign(
       { sub: creatorId, email: 'creator@test.com' },
-      { secret: configService.get('JWT_SECRET', 'change-me-in-production'), expiresIn: '15m' },
+      {
+        secret: configService.get('JWT_SECRET', 'change-me-in-production'),
+        expiresIn: '15m',
+      },
     );
 
     const createPodcastRes = await request(app.getHttpServer())
@@ -94,7 +106,10 @@ describe('Episodes Controller (Contract)', () => {
       .field('title', 'Episodes Test Podcast')
       .field('categoryId', categoryId)
       .field('language', 'en')
-      .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' });
+      .attach('cover', Buffer.from('fake'), {
+        filename: 'cover.jpg',
+        contentType: 'image/jpeg',
+      });
 
     podcastId = createPodcastRes.body.id;
   });
@@ -110,7 +125,10 @@ describe('Episodes Controller (Contract)', () => {
         .set('Authorization', `Bearer ${creatorToken}`)
         .field('title', 'My First Episode')
         .field('duration', '120')
-        .attach('audio', Buffer.from('fake mp3 content'), { filename: 'ep1.mp3', contentType: 'audio/mpeg' })
+        .attach('audio', Buffer.from('fake mp3 content'), {
+          filename: 'ep1.mp3',
+          contentType: 'audio/mpeg',
+        })
         .expect(201);
 
       expect(res.body).toMatchObject({
@@ -135,7 +153,10 @@ describe('Episodes Controller (Contract)', () => {
       await request(app.getHttpServer())
         .post(`/api/v1/podcasts/${podcastId}/episodes`)
         .field('title', 'No Auth')
-        .attach('audio', Buffer.from('fake'), { filename: 'ep.mp3', contentType: 'audio/mpeg' })
+        .attach('audio', Buffer.from('fake'), {
+          filename: 'ep.mp3',
+          contentType: 'audio/mpeg',
+        })
         .expect(401);
     });
   });

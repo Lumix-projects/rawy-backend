@@ -33,18 +33,28 @@ describe('Discovery & Playback Journey (Integration)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/journey.jpg', key: 'covers/journey.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/journey.jpg',
+            key: 'covers/journey.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .overrideProvider(AudioUploadService)
       .useValue({
         uploadAudio: () =>
-          Promise.resolve({ url: 'https://example.com/audio/journey-ep.mp3', key: 'episodes/journey-ep.mp3' }),
+          Promise.resolve({
+            url: 'https://example.com/audio/journey-ep.mp3',
+            key: 'episodes/journey-ep.mp3',
+          }),
         deleteByKey: () => Promise.resolve(),
         getPresignedStreamUrl: (key: string) =>
-          Promise.resolve(`https://presigned.example.com/stream/${key}?expires=3600`),
+          Promise.resolve(
+            `https://presigned.example.com/stream/${key}?expires=3600`,
+          ),
         getPresignedDownloadUrl: (key: string) =>
-          Promise.resolve(`https://presigned.example.com/download/${key}?expires=3600`),
+          Promise.resolve(
+            `https://presigned.example.com/download/${key}?expires=3600`,
+          ),
       })
       .overrideProvider(UploadRateLimitService)
       .useValue({
@@ -123,7 +133,10 @@ describe('Discovery & Playback Journey (Integration)', () => {
       .field('title', 'Journey Discovery Podcast')
       .field('categoryId', categoryId)
       .field('language', 'en')
-      .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' })
+      .attach('cover', Buffer.from('fake'), {
+        filename: 'cover.jpg',
+        contentType: 'image/jpeg',
+      })
       .expect(201);
     podcastId = createPodcastRes.body.id;
 
@@ -138,7 +151,10 @@ describe('Discovery & Playback Journey (Integration)', () => {
       .set('Authorization', `Bearer ${creatorToken}`)
       .field('title', 'Journey Episode')
       .field('duration', '300')
-      .attach('audio', Buffer.from('fake'), { filename: 'ep.mp3', contentType: 'audio/mpeg' })
+      .attach('audio', Buffer.from('fake'), {
+        filename: 'ep.mp3',
+        contentType: 'audio/mpeg',
+      })
       .expect(201);
     episodeId = createEpisodeRes.body.id;
 

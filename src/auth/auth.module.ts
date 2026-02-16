@@ -7,8 +7,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
-import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
-import { VerificationToken, VerificationTokenSchema } from './schemas/verification-token.schema';
+import {
+  RefreshToken,
+  RefreshTokenSchema,
+} from './schemas/refresh-token.schema';
+import {
+  VerificationToken,
+  VerificationTokenSchema,
+} from './schemas/verification-token.schema';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';

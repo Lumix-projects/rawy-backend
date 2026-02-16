@@ -29,7 +29,10 @@ describe('Podcast Journey (Integration)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/journey.jpg', key: 'covers/journey.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/journey.jpg',
+            key: 'covers/journey.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .compile();
@@ -89,7 +92,10 @@ describe('Podcast Journey (Integration)', () => {
       .field('categoryId', categoryId)
       .field('language', 'en')
       .field('description', 'Integration test podcast')
-      .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' })
+      .attach('cover', Buffer.from('fake'), {
+        filename: 'cover.jpg',
+        contentType: 'image/jpeg',
+      })
       .expect(201);
 
     const podcastId = createRes.body.id;

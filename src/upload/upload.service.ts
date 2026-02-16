@@ -24,9 +24,7 @@ export class S3UploadService {
   constructor(private readonly configService: ConfigService) {
     this.region = this.configService.get('AWS_REGION', 'us-east-1');
     this.bucket = this.configService.get('AWS_S3_BUCKET', '');
-    this.client = this.bucket
-      ? new S3Client({ region: this.region })
-      : null;
+    this.client = this.bucket ? new S3Client({ region: this.region }) : null;
   }
 
   async uploadAvatar(
@@ -62,19 +60,14 @@ export class S3UploadService {
     );
   }
 
-  private validateImage(file: {
-    mimetype: string;
-    size: number;
-  }): void {
+  private validateImage(file: { mimetype: string; size: number }): void {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
         `Invalid file type. Allowed: JPEG, PNG, WebP`,
       );
     }
     if (file.size > MAX_FILE_SIZE) {
-      throw new BadRequestException(
-        `File too large. Maximum size: 5MB`,
-      );
+      throw new BadRequestException(`File too large. Maximum size: 5MB`);
     }
   }
 

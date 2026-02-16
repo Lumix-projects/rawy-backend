@@ -28,7 +28,10 @@ describe('Podcasts Controller (Contract)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/test.jpg', key: 'covers/test.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/test.jpg',
+            key: 'covers/test.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .compile();
@@ -54,7 +57,10 @@ describe('Podcasts Controller (Contract)', () => {
 
     let cat = await categories.findOne({ slug: 'tech' });
     if (!cat) {
-      const ins = await categories.insertOne({ slug: 'tech', name: 'Technology' });
+      const ins = await categories.insertOne({
+        slug: 'tech',
+        name: 'Technology',
+      });
       cat = await categories.findOne({ _id: ins.insertedId });
     }
     categoryId = cat!._id.toString();
@@ -89,7 +95,10 @@ describe('Podcasts Controller (Contract)', () => {
         .field('title', 'My Test Podcast')
         .field('categoryId', categoryId)
         .field('language', 'en')
-        .attach('cover', Buffer.from('fake'), { filename: 'cover.jpg', contentType: 'image/jpeg' })
+        .attach('cover', Buffer.from('fake'), {
+          filename: 'cover.jpg',
+          contentType: 'image/jpeg',
+        })
         .expect(201);
 
       expect(res.body).toMatchObject({

@@ -17,10 +17,7 @@ export class RolesGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<
       ('listener' | 'creator' | 'admin')[]
-    >(
-      ROLES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    >(ROLES_KEY, [context.getHandler(), context.getClass()]);
     if (!requiredRoles?.length) {
       return true;
     }

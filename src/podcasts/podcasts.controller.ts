@@ -29,36 +29,55 @@ import { CreatePodcastDto } from './dto/create-podcast.dto';
 import { UpdatePodcastDto } from './dto/update-podcast.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 
-function toPodcastResponse(doc: {
-  _id: Types.ObjectId;
-  title: string;
-  description?: string | null;
-  coverUrl: string;
-  language: string;
-  tags: string[];
-  status: string;
-  explicit: boolean;
-  episodeOrder: string;
-  websiteUrl?: string | null;
-  ownerId: Types.ObjectId;
-  categoryId: { slug: string; name: string } | Types.ObjectId;
-  subcategoryId?: { slug: string; name: string } | Types.ObjectId | null;
-  createdAt?: Date;
-  updatedAt?: Date;
-}, baseUrl: string) {
-  const category = doc.categoryId && typeof doc.categoryId === 'object'
-    ? { id: (doc.categoryId as { _id: Types.ObjectId })._id?.toString(), slug: (doc.categoryId as { slug: string }).slug, name: (doc.categoryId as { name: string }).name }
-    : undefined;
-  const subcategory = doc.subcategoryId && typeof doc.subcategoryId === 'object' && doc.subcategoryId
-    ? { id: (doc.subcategoryId as { _id: Types.ObjectId })._id?.toString(), slug: (doc.subcategoryId as { slug: string }).slug, name: (doc.subcategoryId as { name: string }).name }
-    : undefined;
+function toPodcastResponse(
+  doc: {
+    _id: Types.ObjectId;
+    title: string;
+    description?: string | null;
+    coverUrl: string;
+    language: string;
+    tags: string[];
+    status: string;
+    explicit: boolean;
+    episodeOrder: string;
+    websiteUrl?: string | null;
+    ownerId: Types.ObjectId;
+    categoryId: { slug: string; name: string } | Types.ObjectId;
+    subcategoryId?: { slug: string; name: string } | Types.ObjectId | null;
+    createdAt?: Date;
+    updatedAt?: Date;
+  },
+  baseUrl: string,
+) {
+  const category =
+    doc.categoryId && typeof doc.categoryId === 'object'
+      ? {
+          id: (doc.categoryId as { _id: Types.ObjectId })._id?.toString(),
+          slug: (doc.categoryId as { slug: string }).slug,
+          name: (doc.categoryId as { name: string }).name,
+        }
+      : undefined;
+  const subcategory =
+    doc.subcategoryId &&
+    typeof doc.subcategoryId === 'object' &&
+    doc.subcategoryId
+      ? {
+          id: (doc.subcategoryId as { _id: Types.ObjectId })._id?.toString(),
+          slug: (doc.subcategoryId as { slug: string }).slug,
+          name: (doc.subcategoryId as { name: string }).name,
+        }
+      : undefined;
 
   return {
     id: doc._id.toString(),
     title: doc.title,
     description: doc.description,
-    category: category ? { id: category.id, slug: category.slug, name: category.name } : undefined,
-    subcategory: subcategory ? { id: subcategory.id, slug: subcategory.slug, name: subcategory.name } : undefined,
+    category: category
+      ? { id: category.id, slug: category.slug, name: category.name }
+      : undefined,
+    subcategory: subcategory
+      ? { id: subcategory.id, slug: subcategory.slug, name: subcategory.name }
+      : undefined,
     coverUrl: doc.coverUrl,
     language: doc.language,
     tags: doc.tags,
@@ -70,8 +89,12 @@ function toPodcastResponse(doc: {
     rssUrl: `${baseUrl}/podcasts/${doc._id}/rss`,
     episodeCount: 0,
     subscriberCount: 0,
-    createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? new Date().toISOString(),
-    updatedAt: (doc as { updatedAt?: Date }).updatedAt?.toISOString() ?? new Date().toISOString(),
+    createdAt:
+      (doc as { createdAt?: Date }).createdAt?.toISOString() ??
+      new Date().toISOString(),
+    updatedAt:
+      (doc as { updatedAt?: Date }).updatedAt?.toISOString() ??
+      new Date().toISOString(),
   };
 }
 
@@ -85,7 +108,8 @@ export class PodcastsController {
     private readonly rssService: RssService,
   ) {
     const port = process.env.PORT ?? '3000';
-    this.baseUrl = process.env.API_BASE_URL ?? `http://localhost:${port}/api/v1`;
+    this.baseUrl =
+      process.env.API_BASE_URL ?? `http://localhost:${port}/api/v1`;
   }
 
   @Post()
@@ -119,7 +143,10 @@ export class PodcastsController {
     const { items, total } = await this.podcastsService.findAllByOwner(
       req.user._id,
       {
-        status: status && ['draft', 'published', 'archived'].includes(status) ? status : undefined,
+        status:
+          status && ['draft', 'published', 'archived'].includes(status)
+            ? status
+            : undefined,
         limit: limit ? Math.min(Number(limit), 100) : 20,
         offset: offset ? Number(offset) : 0,
       },
@@ -181,13 +208,15 @@ export class PodcastsController {
       throw new NotFoundException('Podcast not found');
     }
 
-    const episodes = await this.episodesService.findPublishedByPodcast(podcastId);
+    const episodes =
+      await this.episodesService.findPublishedByPodcast(podcastId);
     const items = episodes.map((ep) => ({
       title: ep.title,
       description: ep.description ?? undefined,
       audioUrl: ep.audioUrl,
       audioLength: 0,
-      publishedAt: ep.publishedAt ?? (ep as { createdAt?: Date }).createdAt ?? new Date(),
+      publishedAt:
+        ep.publishedAt ?? (ep as { createdAt?: Date }).createdAt ?? new Date(),
       guid: ep._id.toString(),
       duration: ep.duration,
     }));

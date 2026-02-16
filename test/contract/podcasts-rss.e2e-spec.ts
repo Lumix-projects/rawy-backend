@@ -26,7 +26,10 @@ describe('Podcasts RSS (Contract)', () => {
       .overrideProvider(CoverUploadService)
       .useValue({
         uploadCover: () =>
-          Promise.resolve({ url: 'https://example.com/covers/test.jpg', key: 'covers/test.jpg' }),
+          Promise.resolve({
+            url: 'https://example.com/covers/test.jpg',
+            key: 'covers/test.jpg',
+          }),
         deleteByKey: () => Promise.resolve(),
       })
       .compile();

@@ -18,7 +18,8 @@ export class ListeningProgress {
   updatedAt!: Date;
 }
 
-export const ListeningProgressSchema = SchemaFactory.createForClass(ListeningProgress);
+export const ListeningProgressSchema =
+  SchemaFactory.createForClass(ListeningProgress);
 
 ListeningProgressSchema.index({ userId: 1, episodeId: 1 }, { unique: true });
 ListeningProgressSchema.index({ userId: 1 });

@@ -17,6 +17,8 @@ import { AudioUploadService } from '../shared/upload/audio-upload.service';
 import { CoverUploadService } from '../shared/upload/upload.service';
 import { UploadRateLimitService } from '../shared/rate-limit/upload-rate-limit.service';
 import { PodcastsService } from '../podcasts/podcasts.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 export interface CreateEpisodeInput {
   podcastId: string;
@@ -45,12 +47,17 @@ export class EpisodesService {
   private readonly logger = new Logger(EpisodesService.name);
 
   constructor(
-    @InjectModel(Episode.name) private readonly episodeModel: Model<EpisodeDocument>,
+    @InjectModel(Episode.name)
+    private readonly episodeModel: Model<EpisodeDocument>,
     private readonly audioUploadService: AudioUploadService,
     private readonly coverUploadService: CoverUploadService,
     private readonly uploadRateLimitService: UploadRateLimitService,
     @Inject(forwardRef(() => PodcastsService))
     private readonly podcastsService: PodcastsService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
+    @Inject(forwardRef(() => SubscriptionsService))
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   async create(input: CreateEpisodeInput): Promise<EpisodeDocument> {
@@ -68,12 +75,16 @@ export class EpisodesService {
       `episodes/${podcastId}`,
     );
     if (!uploadResult) {
-      throw new BadRequestException('Audio upload failed. S3 may not be configured.');
+      throw new BadRequestException(
+        'Audio upload failed. S3 may not be configured.',
+      );
     }
 
     let coverUrl: string | null = null;
     if (input.cover) {
-      const coverResult = await this.coverUploadService.uploadCover(input.cover);
+      const coverResult = await this.coverUploadService.uploadCover(
+        input.cover,
+      );
       if (coverResult) {
         coverUrl = coverResult.url;
       }
@@ -85,12 +96,13 @@ export class EpisodesService {
     const audioFormat = MIME_TO_FORMAT[audio.mimetype] ?? 'mp3';
     let duration = dto.duration ?? 0;
     if (duration <= 0) {
-      duration = await this.extractDuration(audio) ?? 0;
+      duration = (await this.extractDuration(audio)) ?? 0;
     }
 
     const status = dto.status ?? 'draft';
     let publishedAt: Date | null = null;
-    let effectiveStatus: 'draft' | 'scheduled' | 'published' = status === 'published' ? 'published' : 'draft';
+    let effectiveStatus: 'draft' | 'scheduled' | 'published' =
+      status === 'published' ? 'published' : 'draft';
 
     if (status === 'published') {
       publishedAt = new Date();
@@ -123,6 +135,22 @@ export class EpisodesService {
       publishedAt,
     });
 
+    if (effectiveStatus === 'published') {
+      this.subscriptionsService
+        .getSubscriberUserIdsByPodcast(podcastId)
+        .then((userIds) =>
+          this.notificationsService.notifyNewEpisode(
+            userIds,
+            doc._id.toString(),
+            doc.title,
+            podcast.title,
+          ),
+        )
+        .catch((err) =>
+          this.logger.warn(`Failed to notify new episode: ${err?.message}`),
+        );
+    }
+
     this.logger.log(
       `Episode created id=${doc._id} podcastId=${podcastId} title=${dto.title} status=${effectiveStatus}`,
     );
@@ -133,8 +161,13 @@ export class EpisodesService {
     podcastId: string,
     options?: { status?: string; limit?: number; offset?: number },
   ): Promise<{ items: EpisodeDocument[]; total: number }> {
-    const filter: Record<string, unknown> = { podcastId: new Types.ObjectId(podcastId) };
-    if (options?.status && ['draft', 'scheduled', 'published', 'archived'].includes(options.status)) {
+    const filter: Record<string, unknown> = {
+      podcastId: new Types.ObjectId(podcastId),
+    };
+    if (
+      options?.status &&
+      ['draft', 'scheduled', 'published', 'archived'].includes(options.status)
+    ) {
       filter.status = options.status;
     }
 
@@ -155,6 +188,14 @@ export class EpisodesService {
     return this.episodeModel.findById(id).populate('podcastId').exec();
   }
 
+  async findByIds(ids: Types.ObjectId[]): Promise<EpisodeDocument[]> {
+    if (ids.length === 0) return [];
+    return this.episodeModel
+      .find({ _id: { $in: ids } })
+      .populate('podcastId')
+      .exec();
+  }
+
   async findByIdOrThrow(id: string | Types.ObjectId): Promise<EpisodeDocument> {
     const doc = await this.findById(id);
     if (!doc) {
@@ -170,7 +211,9 @@ export class EpisodesService {
   ): Promise<EpisodeDocument> {
     const doc = await this.findByIdOrThrow(id);
     const podcastIdRef =
-      typeof doc.podcastId === 'object' && doc.podcastId && '_id' in doc.podcastId
+      typeof doc.podcastId === 'object' &&
+      doc.podcastId &&
+      '_id' in doc.podcastId
         ? (doc.podcastId as { _id: Types.ObjectId })._id
         : doc.podcastId;
     const podcast = await this.podcastsService.findByIdOrThrow(podcastIdRef);
@@ -182,12 +225,17 @@ export class EpisodesService {
     const updates: Record<string, unknown> = {};
 
     if (dto.title !== undefined) updates.title = dto.title.trim();
-    if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
+    if (dto.description !== undefined)
+      updates.description = dto.description?.trim() || null;
     if (dto.seasonNumber !== undefined) updates.seasonNumber = dto.seasonNumber;
-    if (dto.episodeNumber !== undefined) updates.episodeNumber = dto.episodeNumber;
-    if (dto.showNotes !== undefined) updates.showNotes = dto.showNotes?.trim() || null;
-    if (dto.transcription !== undefined) updates.transcription = dto.transcription?.trim() || null;
-    if (dto.chapterMarkers !== undefined) updates.chapterMarkers = dto.chapterMarkers;
+    if (dto.episodeNumber !== undefined)
+      updates.episodeNumber = dto.episodeNumber;
+    if (dto.showNotes !== undefined)
+      updates.showNotes = dto.showNotes?.trim() || null;
+    if (dto.transcription !== undefined)
+      updates.transcription = dto.transcription?.trim() || null;
+    if (dto.chapterMarkers !== undefined)
+      updates.chapterMarkers = dto.chapterMarkers;
 
     if (cover) {
       const coverResult = await this.coverUploadService.uploadCover(cover);
@@ -205,7 +253,9 @@ export class EpisodesService {
         updates.publishedAt = new Date(dto.publishedAt);
       } else if (dto.status === 'published') {
         updates.status = 'published';
-        updates.publishedAt = dto.publishedAt ? new Date(dto.publishedAt) : new Date();
+        updates.publishedAt = dto.publishedAt
+          ? new Date(dto.publishedAt)
+          : new Date();
         updates.archivedAt = null;
       } else if (dto.status === 'draft') {
         updates.status = 'draft';
@@ -231,11 +281,38 @@ export class EpisodesService {
       throw new NotFoundException('Episode not found');
     }
 
+    if (doc.status !== 'published' && updated.status === 'published') {
+      const podcastIdRef =
+        typeof updated.podcastId === 'object' &&
+        updated.podcastId &&
+        '_id' in updated.podcastId
+          ? (updated.podcastId as { _id: Types.ObjectId })._id
+          : updated.podcastId;
+      const podcastIdStr = podcastIdRef.toString();
+      const pod = await this.podcastsService.findByIdOrThrow(podcastIdRef);
+      this.subscriptionsService
+        .getSubscriberUserIdsByPodcast(podcastIdStr)
+        .then((userIds) =>
+          this.notificationsService.notifyNewEpisode(
+            userIds,
+            updated._id.toString(),
+            updated.title,
+            pod.title,
+          ),
+        )
+        .catch((err) =>
+          this.logger.warn(`Failed to notify new episode: ${err?.message}`),
+        );
+    }
+
     this.logger.log(`Episode updated id=${id}`);
     return updated;
   }
 
-  async delete(id: string | Types.ObjectId, ownerId: Types.ObjectId): Promise<void> {
+  async delete(
+    id: string | Types.ObjectId,
+    ownerId: Types.ObjectId,
+  ): Promise<void> {
     const doc = await this.findByIdOrThrow(id);
     const podcast = await this.podcastsService.findByIdOrThrow(doc.podcastId);
     if (!podcast.ownerId.equals(ownerId)) {
@@ -246,7 +323,9 @@ export class EpisodesService {
     this.logger.log(`Episode deleted id=${id}`);
   }
 
-  async findPublishedByPodcast(podcastId: string | Types.ObjectId): Promise<EpisodeDocument[]> {
+  async findPublishedByPodcast(
+    podcastId: string | Types.ObjectId,
+  ): Promise<EpisodeDocument[]> {
     return this.episodeModel
       .find({
         podcastId: new Types.ObjectId(podcastId),
@@ -256,7 +335,9 @@ export class EpisodesService {
       .exec();
   }
 
-  async cancelScheduledByPodcast(podcastId: string | Types.ObjectId): Promise<number> {
+  async cancelScheduledByPodcast(
+    podcastId: string | Types.ObjectId,
+  ): Promise<number> {
     const result = await this.episodeModel
       .updateMany(
         {
@@ -268,7 +349,9 @@ export class EpisodesService {
       .exec();
 
     if (result.modifiedCount > 0) {
-      this.logger.log(`Cancelled ${result.modifiedCount} scheduled episodes for podcast ${podcastId}`);
+      this.logger.log(
+        `Cancelled ${result.modifiedCount} scheduled episodes for podcast ${podcastId}`,
+      );
     }
     return result.modifiedCount;
   }
@@ -286,7 +369,12 @@ export class EpisodesService {
       const updated = await this.episodeModel
         .findByIdAndUpdate(
           ep._id,
-          { $set: { status: 'published', publishedAt: ep.publishedAt ?? new Date() } },
+          {
+            $set: {
+              status: 'published',
+              publishedAt: ep.publishedAt ?? new Date(),
+            },
+          },
           { returnDocument: 'after' },
         )
         .exec();
@@ -298,7 +386,10 @@ export class EpisodesService {
     return published;
   }
 
-  private async extractDuration(_audio: { buffer: Buffer; mimetype: string }): Promise<number | null> {
+  private async extractDuration(_audio: {
+    buffer: Buffer;
+    mimetype: string;
+  }): Promise<number | null> {
     return null;
   }
 }

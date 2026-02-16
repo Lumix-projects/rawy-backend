@@ -18,16 +18,17 @@ import { DiscoveryModule } from './discovery/discovery.module';
 import { PlaybackModule } from './playback/playback.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PlaylistsModule } from './playlists/playlists.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ReportsModule } from './shared/reports/reports.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AdminModule } from './admin/admin.module';
 import { EmailModule } from './common/email/email.module';
 import { SharedUploadModule } from './shared/upload/upload.module';
 import { RateLimitModule } from './shared/rate-limit/rate-limit.module';
 import { QueueModule } from './shared/queue/queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
-function createRedisWithErrorHandler(
-  url: string,
-  type?: string,
-): Redis {
+function createRedisWithErrorHandler(url: string, type?: string): Redis {
   // Bull requires bclient/subscriber to have maxRetriesPerRequest: null, enableReadyCheck: false
   const opts =
     type === 'subscriber' || type === 'bclient'
@@ -53,9 +54,7 @@ function createRedisWithErrorHandler(
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get('REDIS_URL', '');
         const useRedis =
-          redisUrl &&
-          redisUrl !== 'memory' &&
-          !redisUrl.startsWith('skip');
+          redisUrl && redisUrl !== 'memory' && !redisUrl.startsWith('skip');
         return {
           throttlers: [
             { ttl: 60000, limit: 100 },
@@ -95,16 +94,17 @@ function createRedisWithErrorHandler(
     QueueModule,
     EmailModule,
     PodcastsModule,
+    SubscriptionsModule,
     EpisodesModule,
     DiscoveryModule,
     PlaybackModule,
-    SubscriptionsModule,
     PlaylistsModule,
+    AnalyticsModule,
+    NotificationsModule,
+    AdminModule,
+    ReportsModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

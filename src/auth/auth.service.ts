@@ -224,9 +224,7 @@ export class AuthService {
     const plainToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(plainToken);
     const expiresAt = new Date();
-    expiresAt.setHours(
-      expiresAt.getHours() + PASSWORD_RESET_EXPIRY_HOURS,
-    );
+    expiresAt.setHours(expiresAt.getHours() + PASSWORD_RESET_EXPIRY_HOURS);
 
     await this.verificationTokenModel.create({
       userId: user._id,
@@ -279,10 +277,9 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await this.usersRepository.updateById(
-      verificationToken.userId as Types.ObjectId,
-      { passwordHash },
-    );
+    await this.usersRepository.updateById(verificationToken.userId, {
+      passwordHash,
+    });
 
     await this.verificationTokenModel.deleteOne({
       _id: verificationToken._id,
@@ -307,12 +304,14 @@ export class AuthService {
     }
 
     if (verificationToken.expiresAt < new Date()) {
-      await this.verificationTokenModel.deleteOne({ _id: verificationToken._id });
+      await this.verificationTokenModel.deleteOne({
+        _id: verificationToken._id,
+      });
       throw new BadRequestException('Invalid or expired token');
     }
 
     const user = await this.usersRepository.updateById(
-      verificationToken.userId as Types.ObjectId,
+      verificationToken.userId,
       { emailVerified: true },
     );
 
@@ -367,7 +366,7 @@ export class AuthService {
     }
 
     const tokenPair = await this.refreshTokenService.create(
-      user._id as Types.ObjectId,
+      user._id,
       deviceInfo,
     );
 
@@ -458,9 +457,7 @@ export class AuthService {
   }
 
   async issueTokensForUser(user: UserDocument): Promise<TokenPairResponse> {
-    const tokenPair = await this.refreshTokenService.create(
-      user._id as Types.ObjectId,
-    );
+    const tokenPair = await this.refreshTokenService.create(user._id);
 
     const accessToken = this.jwtService.sign({
       sub: user._id.toString(),
@@ -484,7 +481,8 @@ export class AuthService {
   ): Promise<string> {
     let localPart = email.split('@')[0] ?? 'user';
     if (localPart.length < 3 && displayName) {
-      localPart = displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || localPart;
+      localPart =
+        displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || localPart;
     }
     let base = localPart
       .replace(/[^a-zA-Z0-9]/g, '')
