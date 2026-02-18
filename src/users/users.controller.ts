@@ -27,6 +27,7 @@ import { UsersService } from './users.service';
 import { UserDocument } from './schemas/user.schema';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpgradeCreatorDto } from './dto/upgrade-creator.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { toUserResponse } from './dto/user-response.dto';
 
@@ -142,5 +143,23 @@ export class UsersController {
         : undefined,
     });
     return toUserResponse(user);
+  }
+
+  @Patch('me/password')
+  @UseGuards(EmailVerifiedGuard)
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password updated' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 401, description: 'Missing or invalid token' })
+  async changePassword(
+    @Req() req: Request & { user: UserDocument },
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(
+      req.user._id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { message: 'Password updated' };
   }
 }

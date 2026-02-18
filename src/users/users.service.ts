@@ -9,6 +9,8 @@ import { UsersRepository } from './users.repository';
 import { UserDocument } from './schemas/user.schema';
 import { S3UploadService } from '../upload/upload.service';
 import { CategoriesService } from '../categories/categories.service';
+import * as bcrypt from 'bcrypt';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 export interface UpgradeCreatorInput {
   showName: string;
@@ -160,5 +162,29 @@ export class UsersService {
     });
 
     return updatedUser;
+  }
+
+  async changePassword(
+    userId: string | Types.ObjectId,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException('Account does not have a password set');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+
+    const SALT_ROUNDS = 12;
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.usersRepository.updateById(userId, { passwordHash: newHash });
   }
 }
