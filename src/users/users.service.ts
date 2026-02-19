@@ -10,7 +10,6 @@ import { UserDocument } from './schemas/user.schema';
 import { S3UploadService } from '../upload/upload.service';
 import { CategoriesService } from '../categories/categories.service';
 import * as bcrypt from 'bcrypt';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 export interface UpgradeCreatorInput {
   showName: string;
