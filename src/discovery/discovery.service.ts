@@ -78,7 +78,11 @@ export class DiscoveryService {
   ) {
     const url = this.configService.get('REDIS_URL', '');
     if (url && url !== 'memory' && !url.startsWith('skip')) {
-      this.redis = new Redis(url);
+      this.redis = new Redis(url, {
+        maxRetriesPerRequest: 0,
+        enableOfflineQueue: false,
+        lazyConnect: true,
+      });
       this.redis.on('error', () => {});
     }
   }
@@ -234,9 +238,9 @@ export class DiscoveryService {
   ): Promise<{ items: PodcastDocument[]; total: number }> {
     const cacheKey = `${TRENDING_CACHE_KEY}:${limit}`;
     if (this.redis) {
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        try {
+      try {
+        const cached = await this.redis.get(cacheKey);
+        if (cached) {
           const ids = JSON.parse(cached) as string[];
           if (ids.length > 0) {
             const items = await this.podcastModel
@@ -249,9 +253,9 @@ export class DiscoveryService {
               .filter(Boolean) as PodcastDocument[];
             return { items: ordered, total: ordered.length };
           }
-        } catch {
-          // ignore parse error
         }
+      } catch {
+        // Redis unavailable — fall through to DB query
       }
     }
 
@@ -281,8 +285,12 @@ export class DiscoveryService {
       .exec();
 
     if (this.redis && docs.length > 0) {
-      const ids = docs.map((d) => d._id.toString());
-      await this.redis.setex(cacheKey, TRENDING_TTL_SEC, JSON.stringify(ids));
+      try {
+        const ids = docs.map((d) => d._id.toString());
+        await this.redis.setex(cacheKey, TRENDING_TTL_SEC, JSON.stringify(ids));
+      } catch {
+        // Redis unavailable — skip cache write
+      }
     }
 
     return { items: docs, total: docs.length };
@@ -319,7 +327,18 @@ export class DiscoveryService {
       .exec();
 
     if (featured.length === 0) {
-      return this.getTrending(20);
+      // No featured list and no play events → fallback to latest published podcasts
+      const trending = await this.getTrending(20);
+      if (trending.items.length > 0) return trending;
+
+      const items = await this.podcastModel
+        .find({ status: 'published' })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate('categoryId', 'slug name')
+        .populate('subcategoryId', 'slug name')
+        .exec();
+      return { items, total: items.length };
     }
 
     const podcastIds = featured.map((f) => f.podcastId);

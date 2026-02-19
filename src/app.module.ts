@@ -27,6 +27,7 @@ import { SharedUploadModule } from './shared/upload/upload.module';
 import { RateLimitModule } from './shared/rate-limit/rate-limit.module';
 import { QueueModule } from './shared/queue/queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { HomeModule } from './home/home.module';
 
 function createRedisWithErrorHandler(url: string, type?: string): Redis {
   // Bull requires bclient/subscriber to have maxRetriesPerRequest: null, enableReadyCheck: false
@@ -99,6 +100,7 @@ function createRedisWithErrorHandler(url: string, type?: string): Redis {
     DiscoveryModule,
     PlaybackModule,
     PlaylistsModule,
+    HomeModule,
     AnalyticsModule,
     NotificationsModule,
     AdminModule,
