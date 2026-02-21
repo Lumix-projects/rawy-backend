@@ -25,6 +25,7 @@ import { EmailVerifiedGuard } from '../auth/guards/email-verified.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { UsersService } from './users.service';
 import { UserDocument } from './schemas/user.schema';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -93,6 +94,7 @@ export class UsersController {
         website: dto.website,
         twitter: dto.twitter,
         instagram: dto.instagram,
+        isPrivate: dto.isPrivate,
         avatar: avatar
           ? {
               buffer: avatar.buffer,
@@ -166,13 +168,28 @@ export class UsersController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   @ApiOperation({ summary: 'Get public profile by user ID' })
   @ApiResponse({ status: 200, description: 'Public profile (no email)' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getPublicProfile(@Param('id') id: string) {
+  async getPublicProfile(
+    @Param('id') id: string,
+    @Req() req: Request & { user?: UserDocument },
+  ) {
     const user = await this.usersService.findById(id);
     if (!user) throw new NotFoundException('User not found');
+    const requesterId = req.user?._id?.toString();
+    const isOwner = requesterId === user._id.toString();
+    // Private account: hide bio, links, content from non-owners
+    if (user.isPrivate && !isOwner) {
+      return {
+        ...toPublicUserResponse(user),
+        bio: null,
+        socialLinks: null,
+        creatorProfile: null,
+      };
+    }
     return toPublicUserResponse(user);
   }
 }

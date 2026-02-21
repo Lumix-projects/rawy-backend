@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Follow, FollowDocument } from './schemas/follow.schema';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class FollowsService {
     constructor(
         @InjectModel(Follow.name) private readonly followModel: Model<FollowDocument>,
         @Inject(forwardRef(() => UsersService)) private readonly usersService: UsersService,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     async follow(followerId: Types.ObjectId, followingIdStr: string) {
@@ -24,6 +26,14 @@ export class FollowsService {
         if (existing) throw new BadRequestException('Already following');
 
         await this.followModel.create({ followerId, followingId });
+
+        // Fire-and-forget: notify the followed user
+        const follower = await this.usersService.findById(followerId.toString());
+        if (follower) {
+            this.notificationsService
+                .notifyNewFollower(followingId, follower.username, followerId)
+                .catch(() => { /* non-critical */ });
+        }
     }
 
     async unfollow(followerId: Types.ObjectId, followingIdStr: string) {

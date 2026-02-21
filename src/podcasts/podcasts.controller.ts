@@ -22,12 +22,14 @@ import { Types } from 'mongoose';
 import { Public } from '../auth/decorators/public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreatorRoleGuard } from '../auth/guards/creator-role.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { PodcastsService } from './podcasts.service';
 import { EpisodesService } from '../episodes/episodes.service';
 import { RssService } from './rss/rss.service';
 import { CreatePodcastDto } from './dto/create-podcast.dto';
 import { UpdatePodcastDto } from './dto/update-podcast.dto';
 import { UserDocument } from '../users/schemas/user.schema';
+import { UsersService } from '../users/users.service';
 
 function toPodcastResponse(
   doc: {
@@ -106,6 +108,7 @@ export class PodcastsController {
     private readonly podcastsService: PodcastsService,
     private readonly episodesService: EpisodesService,
     private readonly rssService: RssService,
+    private readonly usersService: UsersService,
   ) {
     const port = process.env.PORT ?? '3000';
     this.baseUrl =
@@ -159,8 +162,10 @@ export class PodcastsController {
 
   @Get('by-user/:ownerId')
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   async listPublicPodcastsByUser(
     @Param('ownerId') ownerId: string,
+    @Req() req: Request & { user?: UserDocument },
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
@@ -168,6 +173,13 @@ export class PodcastsController {
     try {
       ownerObjId = new Types.ObjectId(ownerId);
     } catch {
+      return { items: [], total: 0 };
+    }
+    // Check privacy
+    const owner = await this.usersService.findById(ownerId);
+    if (!owner) return { items: [], total: 0 };
+    const requesterId = req.user?._id?.toString();
+    if (owner.isPrivate && requesterId !== ownerId) {
       return { items: [], total: 0 };
     }
     const { items, total } = await this.podcastsService.findAllByOwner(

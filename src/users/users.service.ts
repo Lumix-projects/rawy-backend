@@ -22,6 +22,7 @@ export interface UpdateProfileInput {
   website?: string;
   twitter?: string;
   instagram?: string;
+  isPrivate?: boolean;
   avatar?: { buffer: Buffer; mimetype: string; size: number };
 }
 
@@ -88,6 +89,10 @@ export class UsersService {
     if (input.avatar) {
       const result = await this.s3UploadService.uploadAvatar(input.avatar);
       updates.avatarUrl = result?.url ?? null;
+    }
+
+    if (input.isPrivate !== undefined) {
+      updates.isPrivate = input.isPrivate;
     }
 
     if (creatorInput && user.creatorProfile) {

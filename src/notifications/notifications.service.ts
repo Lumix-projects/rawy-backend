@@ -167,4 +167,17 @@ export class NotificationsService {
       .exec();
     return result.modifiedCount;
   }
+
+  async notifyNewFollower(
+    targetUserId: Types.ObjectId,
+    followerUsername: string,
+    followerId: Types.ObjectId,
+  ): Promise<void> {
+    await this.create(
+      targetUserId,
+      'new_follower',
+      `${followerUsername} started following you`,
+      { refType: 'user', refId: followerId },
+    );
+  }
 }

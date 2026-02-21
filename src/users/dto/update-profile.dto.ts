@@ -6,8 +6,10 @@ import {
   MaxLength,
   MinLength,
   IsNotEmpty,
+  IsBoolean,
   ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional({ maxLength: 500, description: 'User bio' })
@@ -59,4 +61,14 @@ export class UpdateProfileDto {
   })
   @IsOptional()
   avatar?: Express.Multer.File;
+
+  @ApiPropertyOptional({ description: 'Make profile private (hides bio, links, content)' })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  @IsBoolean()
+  isPrivate?: boolean;
 }

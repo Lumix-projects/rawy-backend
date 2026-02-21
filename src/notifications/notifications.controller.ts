@@ -67,6 +67,7 @@ export class NotificationsController {
       milestone: boolean;
       review: boolean;
       system: boolean;
+      newFollower: boolean;
     }>,
   ) {
     return this.preferenceService.updatePreferences(req.user._id, body);

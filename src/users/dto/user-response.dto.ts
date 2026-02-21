@@ -57,6 +57,7 @@ export interface UserResponse {
     instagram?: string;
   } | null;
   emailVerified: boolean;
+  isPrivate: boolean;
   creatorProfile?: {
     showName: string;
     categoryId: string;
@@ -80,6 +81,7 @@ export function toUserResponse(user: UserDocument): UserResponse {
         }
       : null,
     emailVerified: user.emailVerified,
+    isPrivate: user.isPrivate ?? false,
     creatorProfile: user.creatorProfile
       ? {
           showName: user.creatorProfile.showName,
@@ -96,6 +98,7 @@ export interface PublicUserResponse {
   id: string;
   username: string;
   role: string;
+  isPrivate: boolean;
   avatarUrl: string | null;
   bio: string | null;
   socialLinks: { website?: string; twitter?: string; instagram?: string } | null;
@@ -108,6 +111,7 @@ export function toPublicUserResponse(user: UserDocument): PublicUserResponse {
     id: user._id.toString(),
     username: user.username,
     role: user.role,
+    isPrivate: user.isPrivate ?? false,
     avatarUrl: user.avatarUrl ?? null,
     bio: user.bio ?? null,
     socialLinks: user.socialLinks

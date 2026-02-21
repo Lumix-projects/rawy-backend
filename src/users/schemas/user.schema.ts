@@ -59,6 +59,9 @@ export class User {
 
   @Prop({ type: CreatorProfileSchema, default: null })
   creatorProfile!: CreatorProfile | null;
+
+  @Prop({ type: Boolean, default: false })
+  isPrivate!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

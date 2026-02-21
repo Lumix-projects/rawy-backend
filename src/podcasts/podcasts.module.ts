@@ -11,6 +11,7 @@ import { CategoriesModule } from '../categories/categories.module';
 import { SharedUploadModule } from '../shared/upload/upload.module';
 import { EpisodesModule } from '../episodes/episodes.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     SharedUploadModule,
     forwardRef(() => EpisodesModule),
     forwardRef(() => NotificationsModule),
+    UsersModule,
   ],
   controllers: [PodcastsController, RatingsController],
   providers: [PodcastsService, RssService, RatingsService],
