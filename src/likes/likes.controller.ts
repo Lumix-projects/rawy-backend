@@ -14,6 +14,7 @@ import { Request } from 'express';
 import { IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ListenerOrCreatorGuard } from '../auth/guards/listener-creator.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { Public } from '../auth/decorators/public.decorator';
 import { LikesService } from './likes.service';
 import { UserDocument } from '../users/schemas/user.schema';
@@ -45,6 +46,7 @@ export class LikesController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
   async stats(@Req() req: Request & { user?: UserDocument }, @Query('targetType') targetType: string, @Query('targetId') targetId: string) {
     const userId = req.user ? req.user._id : null;

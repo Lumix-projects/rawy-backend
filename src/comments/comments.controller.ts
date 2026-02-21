@@ -13,10 +13,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { Types } from 'mongoose';
 import { IsString, IsOptional, IsNumberString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ListenerOrCreatorGuard } from '../auth/guards/listener-creator.guard';
+import { Public } from '../auth/decorators/public.decorator';
 import { CommentsService } from './comments.service';
 import { UserDocument } from '../users/schemas/user.schema';
 
@@ -36,6 +36,14 @@ class CreateCommentDto {
 }
 
 class ListQueryDto {
+  @IsOptional()
+  @IsString()
+  targetType?: string;
+
+  @IsOptional()
+  @IsString()
+  targetId?: string;
+
   @IsOptional()
   @IsNumberString()
   limit?: string;
@@ -64,6 +72,7 @@ export class CommentsController {
     return doc;
   }
 
+  @Public()
   @Get()
   async list(@Query('targetType') targetType: string, @Query('targetId') targetId: string, @Query() query: ListQueryDto) {
     if (!targetType || !targetId) throw new BadRequestException('targetType and targetId are required');
