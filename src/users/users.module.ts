@@ -5,6 +5,7 @@ import { UsersController } from './users.controller';
 import { UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
 import { AuthModule } from '../auth/auth.module';
+import { FollowsModule } from '../follows/follows.module';
 import { UploadModule } from '../upload/upload.module';
 import { CategoriesModule } from '../categories/categories.module';
 
@@ -12,6 +13,7 @@ import { CategoriesModule } from '../categories/categories.module';
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     forwardRef(() => AuthModule),
+    forwardRef(() => FollowsModule),
     UploadModule,
     CategoriesModule,
   ],
@@ -19,4 +21,4 @@ import { CategoriesModule } from '../categories/categories.module';
   providers: [UsersService, UsersRepository],
   exports: [UsersService, UsersRepository],
 })
-export class UsersModule {}
+export class UsersModule { }

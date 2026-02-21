@@ -12,9 +12,15 @@ import { PodcastsService } from '../podcasts/podcasts.service';
 
 function toResponse(doc: CommentDocument | (Record<string, unknown> & { _id: Types.ObjectId })) {
   const d = doc as any;
+  const userObj = d.userId && d.userId.username ? d.userId : null;
   return {
     id: d._id.toString(),
-    userId: d.userId.toString(),
+    userId: userObj ? userObj._id.toString() : d.userId.toString(),
+    user: userObj ? {
+      id: userObj._id.toString(),
+      username: userObj.username,
+      avatarUrl: userObj.avatarUrl,
+    } : null,
     targetType: d.targetType,
     targetId: d.targetId.toString(),
     parentId: d.parentId ? d.parentId.toString() : null,
@@ -34,7 +40,7 @@ export class CommentsService {
     private readonly episodesService: EpisodesService,
     @Inject(forwardRef(() => PodcastsService))
     private readonly podcastsService: PodcastsService,
-  ) {}
+  ) { }
 
   async create(userId: Types.ObjectId, input: { targetType: string; targetId: string; text: string; parentId?: string | null; }) {
     const { targetType, targetId, text, parentId } = input;
@@ -63,6 +69,8 @@ export class CommentsService {
     if (parentId) {
       await this.commentModel.updateOne({ _id: parentId }, { $inc: { repliesCount: 1 } }).exec();
     }
+
+    await doc.populate('userId', 'username avatarUrl');
 
     return toResponse(doc);
   }
@@ -102,6 +110,7 @@ export class CommentsService {
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit)
+      .populate('userId', 'username avatarUrl')
       .lean()
       .exec();
 

@@ -28,6 +28,9 @@ import { RateLimitModule } from './shared/rate-limit/rate-limit.module';
 import { QueueModule } from './shared/queue/queue.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { HomeModule } from './home/home.module';
+import { CommentsModule } from './comments/comments.module';
+import { LikesModule } from './likes/likes.module';
+import { FollowsModule } from './follows/follows.module';
 
 function createRedisWithErrorHandler(url: string, type?: string): Redis {
   // Bull requires bclient/subscriber to have maxRetriesPerRequest: null, enableReadyCheck: false
@@ -64,8 +67,8 @@ function createRedisWithErrorHandler(url: string, type?: string): Redis {
           ],
           storage: useRedis
             ? new ThrottlerStorageRedisService(
-                createRedisWithErrorHandler(redisUrl),
-              )
+              createRedisWithErrorHandler(redisUrl),
+            )
             : undefined, // In-memory when Redis disabled
         };
       },
@@ -105,10 +108,11 @@ function createRedisWithErrorHandler(url: string, type?: string): Redis {
     AnalyticsModule,
     NotificationsModule,
     LikesModule,
+    FollowsModule,
     AdminModule,
     ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
-export class AppModule {}
+export class AppModule { }
