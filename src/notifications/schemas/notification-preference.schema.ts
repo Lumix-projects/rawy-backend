@@ -19,6 +19,9 @@ export class NotificationPreference {
 
   @Prop({ type: Boolean, default: true })
   system!: boolean;
+
+  @Prop({ type: Boolean, default: true })
+  newFollower!: boolean;
 }
 
 export const NotificationPreferenceSchema =

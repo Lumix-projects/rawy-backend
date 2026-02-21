@@ -157,6 +157,33 @@ export class PodcastsController {
     };
   }
 
+  @Get('by-user/:ownerId')
+  @Public()
+  async listPublicPodcastsByUser(
+    @Param('ownerId') ownerId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    let ownerObjId: Types.ObjectId;
+    try {
+      ownerObjId = new Types.ObjectId(ownerId);
+    } catch {
+      return { items: [], total: 0 };
+    }
+    const { items, total } = await this.podcastsService.findAllByOwner(
+      ownerObjId,
+      {
+        status: 'published',
+        limit: limit ? Math.min(Number(limit), 50) : 20,
+        offset: offset ? Number(offset) : 0,
+      },
+    );
+    return {
+      items: items.map((doc) => toPodcastResponse(doc, this.baseUrl)),
+      total,
+    };
+  }
+
   @Get(':podcastId')
   @Public()
   async getById(@Param('podcastId') podcastId: string) {

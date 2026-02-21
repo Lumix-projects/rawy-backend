@@ -16,6 +16,7 @@ const TYPE_TO_FIELD: Record<NotificationType, PrefFields> = {
   milestone: 'milestone',
   review: 'review',
   system: 'system',
+  new_follower: 'newFollower',
 };
 
 @Injectable()
@@ -41,6 +42,7 @@ export class NotificationPreferenceService {
     milestone: boolean;
     review: boolean;
     system: boolean;
+    newFollower: boolean;
   }> {
     const doc = await this.prefModel.findOne({ userId }).lean().exec();
     return {
@@ -48,6 +50,7 @@ export class NotificationPreferenceService {
       milestone: doc?.milestone ?? true,
       review: doc?.review ?? true,
       system: doc?.system ?? true,
+      newFollower: doc?.newFollower ?? true,
     };
   }
 
@@ -58,6 +61,7 @@ export class NotificationPreferenceService {
       milestone: boolean;
       review: boolean;
       system: boolean;
+      newFollower: boolean;
     }>,
   ): Promise<NotificationPreferenceDocument> {
     const updates: Record<string, boolean> = {};
@@ -65,6 +69,7 @@ export class NotificationPreferenceService {
     if (prefs.milestone !== undefined) updates.milestone = prefs.milestone;
     if (prefs.review !== undefined) updates.review = prefs.review;
     if (prefs.system !== undefined) updates.system = prefs.system;
+    if (prefs.newFollower !== undefined) updates.newFollower = prefs.newFollower;
 
     if (Object.keys(updates).length === 0) {
       const existing = await this.prefModel.findOne({ userId }).exec();
@@ -76,6 +81,7 @@ export class NotificationPreferenceService {
           milestone: true,
           review: true,
           system: true,
+          newFollower: true,
         }))
       );
     }

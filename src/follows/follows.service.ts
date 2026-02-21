@@ -51,4 +51,48 @@ export class FollowsService {
         }).exec();
         return !!existing;
     }
+
+    async getFollowers(userId: string, limit = 20, offset = 0) {
+        const userObjId = new Types.ObjectId(userId);
+        const [docs, total] = await Promise.all([
+            this.followModel
+                .find({ followingId: userObjId })
+                .skip(offset)
+                .limit(limit)
+                .populate('followerId', 'username avatarUrl bio role')
+                .lean()
+                .exec(),
+            this.followModel.countDocuments({ followingId: userObjId }).exec(),
+        ]);
+        const items = docs.map((d: any) => ({
+            id: d.followerId._id?.toString() ?? d.followerId.toString(),
+            username: d.followerId.username ?? '',
+            avatarUrl: d.followerId.avatarUrl ?? null,
+            bio: d.followerId.bio ?? null,
+            role: d.followerId.role ?? 'listener',
+        }));
+        return { items, total };
+    }
+
+    async getFollowing(userId: string, limit = 20, offset = 0) {
+        const userObjId = new Types.ObjectId(userId);
+        const [docs, total] = await Promise.all([
+            this.followModel
+                .find({ followerId: userObjId })
+                .skip(offset)
+                .limit(limit)
+                .populate('followingId', 'username avatarUrl bio role')
+                .lean()
+                .exec(),
+            this.followModel.countDocuments({ followerId: userObjId }).exec(),
+        ]);
+        const items = docs.map((d: any) => ({
+            id: d.followingId._id?.toString() ?? d.followingId.toString(),
+            username: d.followingId.username ?? '',
+            avatarUrl: d.followingId.avatarUrl ?? null,
+            bio: d.followingId.bio ?? null,
+            role: d.followingId.role ?? 'listener',
+        }));
+        return { items, total };
+    }
 }

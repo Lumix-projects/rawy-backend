@@ -7,7 +7,8 @@ export type NotificationType =
   | 'new_episode'
   | 'milestone'
   | 'review'
-  | 'system';
+  | 'system'
+  | 'new_follower';
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Notification {
@@ -16,7 +17,7 @@ export class Notification {
 
   @Prop({
     required: true,
-    enum: ['new_episode', 'milestone', 'review', 'system'],
+    enum: ['new_episode', 'milestone', 'review', 'system', 'new_follower'],
   })
   type!: NotificationType;
 

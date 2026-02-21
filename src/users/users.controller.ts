@@ -5,6 +5,7 @@ import {
   Post,
   Body,
   Req,
+  Param,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -23,13 +24,14 @@ import { Request } from 'express';
 import { EmailVerifiedGuard } from '../auth/guards/email-verified.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { UsersService } from './users.service';
 import { UserDocument } from './schemas/user.schema';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpgradeCreatorDto } from './dto/upgrade-creator.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { toUserResponse } from './dto/user-response.dto';
+import { toUserResponse, toPublicUserResponse } from './dto/user-response.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('bearerAuth')
@@ -161,5 +163,16 @@ export class UsersController {
       dto.newPassword,
     );
     return { message: 'Password updated' };
+  }
+
+  @Public()
+  @Get(':id')
+  @ApiOperation({ summary: 'Get public profile by user ID' })
+  @ApiResponse({ status: 200, description: 'Public profile (no email)' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getPublicProfile(@Param('id') id: string) {
+    const user = await this.usersService.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+    return toPublicUserResponse(user);
   }
 }
