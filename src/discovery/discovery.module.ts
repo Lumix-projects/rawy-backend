@@ -16,6 +16,11 @@ import {
   FeaturedPodcast,
   FeaturedPodcastSchema,
 } from '../admin/schemas/featured-podcast.schema';
+import {
+  Subscription,
+  SubscriptionSchema,
+} from '../subscriptions/schemas/subscription.schema';
+import { Follow, FollowSchema } from '../follows/schemas/follow.schema';
 
 @Module({
   imports: [
@@ -25,6 +30,8 @@ import {
       { name: PlayEvent.name, schema: PlayEventSchema },
       { name: ListeningProgress.name, schema: ListeningProgressSchema },
       { name: FeaturedPodcast.name, schema: FeaturedPodcastSchema },
+      { name: Subscription.name, schema: SubscriptionSchema },
+      { name: Follow.name, schema: FollowSchema },
     ]),
   ],
   controllers: [DiscoveryController],

@@ -147,6 +147,31 @@ export class PlaylistsController {
     return toPlaylistResponse(doc, episodes);
   }
 
+  @Post(':playlistId/episodes')
+  async addEpisode(
+    @Req() req: Request & { user: UserDocument },
+    @Param('playlistId') playlistId: string,
+    @Body() body: { episodeId: string },
+  ) {
+    const doc = await this.playlistsService.addEpisode(
+      playlistId,
+      req.user._id,
+      body.episodeId,
+    );
+    const episodes = await this.playlistsService.getEpisodesForPlaylist(doc);
+    return toPlaylistResponse(doc, episodes);
+  }
+
+  @Delete(':playlistId/episodes/:episodeId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeEpisodeById(
+    @Req() req: Request & { user: UserDocument },
+    @Param('playlistId') playlistId: string,
+    @Param('episodeId') episodeId: string,
+  ) {
+    await this.playlistsService.removeEpisode(playlistId, req.user._id, episodeId);
+  }
+
   @Delete(':playlistId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(

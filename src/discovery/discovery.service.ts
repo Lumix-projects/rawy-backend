@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import type { PipelineStage } from 'mongoose';
@@ -18,6 +18,8 @@ import {
   FeaturedPodcast,
   FeaturedPodcastDocument,
 } from '../admin/schemas/featured-podcast.schema';
+import { Subscription, SubscriptionDocument } from '../subscriptions/schemas/subscription.schema';
+import { Follow, FollowDocument } from '../follows/schemas/follow.schema';
 
 const TRENDING_CACHE_KEY = 'discovery:trending_podcasts';
 const TRENDING_TTL_SEC = 3600; // 1 hour
@@ -74,6 +76,10 @@ export class DiscoveryService {
     private readonly progressModel: Model<ListeningProgressDocument>,
     @InjectModel(FeaturedPodcast.name)
     private readonly featuredPodcastModel: Model<FeaturedPodcastDocument>,
+    @InjectModel(Subscription.name)
+    private readonly subscriptionModel: Model<SubscriptionDocument>,
+    @InjectModel(Follow.name)
+    private readonly followModel: Model<FollowDocument>,
     private readonly configService: ConfigService,
   ) {
     const url = this.configService.get('REDIS_URL', '');
@@ -90,6 +96,9 @@ export class DiscoveryService {
   async browse(
     options: BrowseOptions,
   ): Promise<{ items: PodcastDocument[]; total: number }> {
+    const limit = Math.min(options.limit ?? 20, 100);
+    const offset = options.offset ?? 0;
+
     const filter: Record<string, unknown> = { status: 'published' };
     if (options.categoryId) {
       filter.categoryId = new Types.ObjectId(options.categoryId);
@@ -101,13 +110,10 @@ export class DiscoveryService {
       filter.tags = { $in: options.tags };
     }
 
-    const limit = Math.min(options.limit ?? 20, 100);
-    const offset = options.offset ?? 0;
-
     const [items, total] = await Promise.all([
       this.podcastModel
         .find(filter)
-        .sort({ updatedAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit)
         .populate('categoryId', 'slug name')
@@ -120,53 +126,39 @@ export class DiscoveryService {
   }
 
   async search(options: SearchOptions): Promise<SearchResult> {
-    const q = options.q?.trim();
-    if (!q) {
-      throw new BadRequestException('Search query (q) is required');
-    }
-
     const limit = Math.min(options.limit ?? 20, 100);
     const offset = options.offset ?? 0;
     const type = options.type ?? 'all';
 
     const result: SearchResult = { podcasts: [], episodes: [] };
 
+    if (!options.q || options.q.trim() === '') {
+      return result;
+    }
+
+    const textQuery = this.escapeTextSearch(options.q);
+
     const podcastFilter: Record<string, unknown> = {
       status: 'published',
-      $text: { $search: this.escapeTextSearch(q) },
+      $text: { $search: textQuery },
     };
     const episodeFilter: Record<string, unknown> = {
       status: 'published',
-      $text: { $search: this.escapeTextSearch(q) },
+      $text: { $search: textQuery },
     };
+
     if (options.tags && options.tags.length > 0) {
       podcastFilter.tags = { $in: options.tags };
-      // Episodes don't have tags; filter by podcast IDs that match tags
-      const podcastIdsWithTags = await this.podcastModel
-        .find({
-          status: 'published',
-          tags: { $in: options.tags },
-        })
-        .distinct('_id')
-        .exec();
-      if (podcastIdsWithTags.length > 0) {
-        episodeFilter.podcastId = { $in: podcastIdsWithTags };
-      } else {
-        episodeFilter.podcastId = { $in: [] }; // No matching podcasts
-      }
     }
 
     try {
       if (type === 'podcast' || type === 'all') {
-        const [podcasts, _] = await Promise.all([
-          this.podcastModel
-            .find(podcastFilter)
-            .limit(limit)
-            .skip(offset)
-            .populate('categoryId', 'slug name')
-            .exec(),
-          this.podcastModel.countDocuments(podcastFilter).exec(),
-        ]);
+        const podcasts = await this.podcastModel
+          .find(podcastFilter)
+          .limit(limit)
+          .skip(offset)
+          .populate('categoryId', 'slug name')
+          .exec();
         result.podcasts = podcasts.map((p) => this.toSearchPodcast(p));
       }
 
@@ -255,7 +247,7 @@ export class DiscoveryService {
           }
         }
       } catch {
-        // Redis unavailable — fall through to DB query
+        // Redis unavailable  fall through to DB query
       }
     }
 
@@ -289,7 +281,7 @@ export class DiscoveryService {
         const ids = docs.map((d) => d._id.toString());
         await this.redis.setex(cacheKey, TRENDING_TTL_SEC, JSON.stringify(ids));
       } catch {
-        // Redis unavailable — skip cache write
+        // Redis unavailable  skip cache write
       }
     }
 
@@ -327,7 +319,7 @@ export class DiscoveryService {
       .exec();
 
     if (featured.length === 0) {
-      // No featured list and no play events → fallback to latest published podcasts
+      // No featured list and no play events -> fallback to latest published podcasts
       const trending = await this.getTrending(20);
       if (trending.items.length > 0) return trending;
 
@@ -365,85 +357,102 @@ export class DiscoveryService {
     const limit = Math.min(options?.limit ?? 20, 50);
     const offset = options?.offset ?? 0;
 
-    // Get user's listening history (episodeIds)
+    // Collect listened podcast IDs to exclude
     const progressList = await this.progressModel
       .find({ userId })
       .sort({ updatedAt: -1 })
-      .limit(100)
-      .exec();
-
-    if (progressList.length === 0) {
-      // No history: fallback to trending
-      return this.getTrending(limit);
-    }
-
-    const episodeIds = progressList.map((p) => p.episodeId);
-
-    // Get episodes with podcast info
-    const episodes = await this.episodeModel
-      .find({ _id: { $in: episodeIds }, status: 'published' })
-      .populate('podcastId')
+      .limit(200)
       .exec();
 
     const listenedPodcastIds = new Set<string>();
-    const categoryIds = new Set<string>();
-    const allTags = new Set<string>();
-
-    for (const ep of episodes) {
-      const podcast = ep.podcastId;
-      if (podcast && typeof podcast === 'object' && '_id' in podcast) {
-        const pid = (podcast as { _id: Types.ObjectId })._id.toString();
-        listenedPodcastIds.add(pid);
-        if ('categoryId' in podcast && podcast.categoryId) {
-          categoryIds.add((podcast.categoryId as Types.ObjectId).toString());
-        }
-        if (
-          'tags' in podcast &&
-          Array.isArray((podcast as { tags: string[] }).tags)
-        ) {
-          for (const t of (podcast as { tags: string[] }).tags) {
-            if (t) allTags.add(t);
-          }
+    if (progressList.length > 0) {
+      const episodeIds = progressList.map((p) => p.episodeId);
+      const episodes = await this.episodeModel
+        .find({ _id: { $in: episodeIds }, status: 'published' })
+        .populate('podcastId')
+        .exec();
+      for (const ep of episodes) {
+        const podcast = ep.podcastId;
+        if (podcast && typeof podcast === 'object' && '_id' in podcast) {
+          listenedPodcastIds.add((podcast as { _id: Types.ObjectId })._id.toString());
         }
       }
     }
 
-    const excludeIds = Array.from(listenedPodcastIds).map(
-      (id) => new Types.ObjectId(id),
-    );
-    const catIds = Array.from(categoryIds).map((id) => new Types.ObjectId(id));
+    // 1) Follow-based: find users the current user follows, get their subscriptions
+    const followDocs = await this.followModel
+      .find({ followerId: userId })
+      .select('followingId')
+      .lean()
+      .exec();
 
-    // Find podcasts: same category OR overlapping tags, exclude listened
-    const orConditions: Record<string, unknown>[] = [];
-    if (catIds.length > 0) {
-      orConditions.push({ categoryId: { $in: catIds } });
-    }
-    if (allTags.size > 0) {
-      orConditions.push({ tags: { $in: Array.from(allTags) } });
+    const followingUserIds = (followDocs as Array<{ followingId: Types.ObjectId | string | null }>)
+      .map((d) => d.followingId)
+      .filter((id): id is Types.ObjectId | string => id != null);
+
+    let followBasedPodcastIds: string[] = [];
+    if (followingUserIds.length > 0) {
+      const subs = await this.subscriptionModel
+        .find({ userId: { $in: followingUserIds } })
+        .select('podcastId')
+        .lean()
+        .exec();
+      const counts = new Map<string, number>();
+      for (const s of subs) {
+        const pid = (s as { podcastId: unknown }).podcastId?.toString?.() ?? String((s as { podcastId: unknown }).podcastId);
+        if (!pid) continue;
+        if (listenedPodcastIds.has(pid)) continue;
+        counts.set(pid, (counts.get(pid) ?? 0) + 1);
+      }
+      followBasedPodcastIds = Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map((e) => e[0]);
     }
 
-    if (orConditions.length === 0) {
+    // 2) Popularity-based: recent play events (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30);
+    const popPipeline: PipelineStage[] = [
+      { $match: { podcastId: { $exists: true }, createdAt: { $gte: thirtyDaysAgo } } },
+      { $group: { _id: '$podcastId', plays: { $sum: 1 } } },
+      { $sort: { plays: -1 } },
+      { $limit: Math.max(limit * 2, 50) },
+    ];
+    const popAgg = (await this.playEventModel.aggregate(popPipeline).exec()) as Array<{ _id: Types.ObjectId; plays: number }>;
+    const popularIds = popAgg
+      .map((r) => r._id.toString())
+      .filter((id) => !listenedPodcastIds.has(id));
+
+    // Merge: follow-based first, then popular (dedup)
+    const orderedIds: string[] = [];
+    const addId = (id: string) => {
+      if (!id || orderedIds.includes(id)) return;
+      orderedIds.push(id);
+    };
+    for (const id of followBasedPodcastIds) {
+      addId(id);
+      if (orderedIds.length >= limit + offset) break;
+    }
+    for (const id of popularIds) {
+      addId(id);
+      if (orderedIds.length >= limit + offset) break;
+    }
+
+    if (orderedIds.length === 0) {
       return this.getTrending(limit);
     }
 
-    const filter = {
-      status: 'published',
-      _id: { $nin: excludeIds },
-      $or: orConditions,
-    };
+    const slice = orderedIds.slice(offset, offset + limit).map((id) => new Types.ObjectId(id));
 
-    const [items, total] = await Promise.all([
-      this.podcastModel
-        .find(filter)
-        .sort({ updatedAt: -1 })
-        .skip(offset)
-        .limit(limit)
-        .populate('categoryId', 'slug name')
-        .populate('subcategoryId', 'slug name')
-        .exec(),
-      this.podcastModel.countDocuments(filter).exec(),
-    ]);
+    const docs = await this.podcastModel
+      .find({ _id: { $in: slice }, status: 'published' })
+      .populate('categoryId', 'slug name')
+      .populate('subcategoryId', 'slug name')
+      .exec();
 
-    return { items, total };
+    const orderedDocs = slice
+      .map((oid) => docs.find((d) => d._id.toString() === oid.toString()))
+      .filter(Boolean) as PodcastDocument[];
+
+    return { items: orderedDocs, total: orderedIds.length };
   }
 }

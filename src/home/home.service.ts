@@ -84,7 +84,7 @@ export class HomeService {
 
         const rec = await this.discoveryService
           .getRecommendations(uid, { limit: lim })
-          .catch((e) => { this.logger.error('getRecommendations failed', e); return { items: [] }; });
+          .catch((err: unknown) => { this.logger.error('getRecommendations failed', err); return { items: [] as import('../podcasts/schemas/podcast.schema').PodcastDocument[], total: 0 }; });
         recommendations = rec.items.slice(0, lim).map((p) => this.toMediaFromPodcast(p));
       } catch (e) {
         this.logger.error('User-specific home section failed', e);
@@ -97,7 +97,7 @@ export class HomeService {
       recommendations = await this.discoveryService
         .getTrending(lim)
         .then((r) => r.items.slice(0, lim).map((p) => this.toMediaFromPodcast(p)))
-        .catch((e) => { this.logger.error('getTrending failed', e); return []; });
+        .catch((err: unknown) => { this.logger.error('getTrending failed', err); return []; });
     }
 
     return { featured, latest, continueListening, recommendations };
