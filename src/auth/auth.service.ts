@@ -25,7 +25,6 @@ import { RegisterListenerDto } from './dto/register-listener.dto';
 import { RegisterCreatorDto } from './dto/register-creator.dto';
 import { VERIFICATION_EMAIL_QUEUE } from './processors/verification-email.processor';
 import { PASSWORD_RESET_EMAIL_QUEUE } from './processors/password-reset.processor';
-import { CategoriesService } from '../categories/categories.service';
 import { S3UploadService } from '../upload/upload.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { EmailService } from '../common/email/email.service';
@@ -49,7 +48,6 @@ export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly configService: ConfigService,
-    private readonly categoriesService: CategoriesService,
     private readonly s3UploadService: S3UploadService,
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
@@ -149,11 +147,6 @@ export class AuthService {
     const emailLower = dto.email.toLowerCase().trim();
     const usernameTrimmed = dto.username.trim();
 
-    const category = await this.categoriesService.findById(dto.categoryId);
-    if (!category) {
-      throw new BadRequestException('Invalid category');
-    }
-
     const [emailExists, usernameExists] = await Promise.all([
       this.usersRepository.existsByEmail(emailLower),
       this.usersRepository.existsByUsername(usernameTrimmed),
@@ -183,7 +176,6 @@ export class AuthService {
       avatarUrl,
       creatorProfile: {
         showName: dto.showName.trim(),
-        category: category._id.toString(),
       },
     });
 

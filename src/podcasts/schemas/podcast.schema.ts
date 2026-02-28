@@ -17,11 +17,8 @@ export class Podcast {
   @Prop({ type: String, default: null })
   description!: string | null;
 
-  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
-  categoryId!: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Category', default: null })
-  subcategoryId!: Types.ObjectId | null;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
+  categoryIds!: Types.ObjectId[];
 
   @Prop({ required: true })
   coverUrl!: string;
@@ -52,7 +49,7 @@ export const PodcastSchema = SchemaFactory.createForClass(Podcast);
 
 PodcastSchema.index({ ownerId: 1 });
 PodcastSchema.index({ status: 1 });
-PodcastSchema.index({ categoryId: 1 });
+PodcastSchema.index({ categoryIds: 1 });
 PodcastSchema.index({ archivedAt: 1 });
 PodcastSchema.index(
   { title: 'text', description: 'text', tags: 'text' },

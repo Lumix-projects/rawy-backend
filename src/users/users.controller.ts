@@ -79,12 +79,10 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
     @UploadedFile() avatar?: Express.Multer.File,
   ) {
-    const creatorInput: { showName?: string; categoryId?: string } | undefined =
+    const creatorInput: { showName?: string } | undefined =
       req.user.creatorProfile && req.user.role === 'creator' ? {} : undefined;
     if (creatorInput) {
       if (dto.showName !== undefined) creatorInput.showName = dto.showName;
-      if (dto.categoryId !== undefined)
-        creatorInput.categoryId = dto.categoryId;
     }
 
     const user = await this.usersService.updateProfile(
@@ -137,7 +135,6 @@ export class UsersController {
   ) {
     const user = await this.usersService.upgradeToCreator(req.user._id, {
       showName: dto.showName,
-      categoryId: dto.categoryId,
       avatar: avatar
         ? {
             buffer: avatar.buffer,

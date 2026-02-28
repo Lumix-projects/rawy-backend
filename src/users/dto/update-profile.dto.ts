@@ -5,7 +5,6 @@ import {
   IsUrl,
   MaxLength,
   MinLength,
-  IsNotEmpty,
   IsBoolean,
   ValidateIf,
 } from 'class-validator';
@@ -47,12 +46,6 @@ export class UpdateProfileDto {
   @MinLength(1)
   @MaxLength(100)
   showName?: string;
-
-  @ApiPropertyOptional({ description: 'Category ID (creators only)' })
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  categoryId?: string;
 
   @ApiPropertyOptional({
     type: 'string',

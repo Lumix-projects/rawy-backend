@@ -26,7 +26,6 @@ const TRENDING_TTL_SEC = 3600; // 1 hour
 
 export interface BrowseOptions {
   categoryId?: string;
-  subcategoryId?: string;
   tags?: string[];
   limit?: number;
   offset?: number;
@@ -101,10 +100,7 @@ export class DiscoveryService {
 
     const filter: Record<string, unknown> = { status: 'published' };
     if (options.categoryId) {
-      filter.categoryId = new Types.ObjectId(options.categoryId);
-    }
-    if (options.subcategoryId) {
-      filter.subcategoryId = new Types.ObjectId(options.subcategoryId);
+      filter.categoryIds = new Types.ObjectId(options.categoryId);
     }
     if (options.tags && options.tags.length > 0) {
       filter.tags = { $in: options.tags };
@@ -116,8 +112,7 @@ export class DiscoveryService {
         .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit)
-        .populate('categoryId', 'slug name')
-        .populate('subcategoryId', 'slug name')
+        .populate('categoryIds', 'slug name')
         .exec(),
       this.podcastModel.countDocuments(filter).exec(),
     ]);
@@ -157,7 +152,7 @@ export class DiscoveryService {
           .find(podcastFilter)
           .limit(limit)
           .skip(offset)
-          .populate('categoryId', 'slug name')
+          .populate('categoryIds', 'slug name')
           .exec();
         result.podcasts = podcasts.map((p) => this.toSearchPodcast(p));
       }
@@ -190,19 +185,21 @@ export class DiscoveryService {
   }
 
   private toSearchPodcast(p: PodcastDocument) {
-    const raw = p.categoryId as unknown;
-    const cat =
-      raw && typeof raw === 'object' && 'slug' in raw
-        ? (raw as { _id: Types.ObjectId; slug: string; name: string })
-        : null;
+    const cats = (p.categoryIds ?? []) as unknown as Array<{
+      _id: Types.ObjectId;
+      slug: string;
+      name: string;
+    }>;
+    const categories = cats
+      .filter((c) => c && typeof c === 'object' && 'slug' in c)
+      .map((c) => ({ id: c._id.toString(), slug: c.slug, name: c.name }));
     return {
       id: p._id.toString(),
       title: p.title,
       description: p.description,
       coverUrl: p.coverUrl,
-      category: cat
-        ? { id: cat._id.toString(), slug: cat.slug, name: cat.name }
-        : undefined,
+      categories,
+      category: categories[0] ?? undefined,
       status: p.status,
     };
   }
@@ -237,8 +234,7 @@ export class DiscoveryService {
           if (ids.length > 0) {
             const items = await this.podcastModel
               .find({ _id: { $in: ids }, status: 'published' })
-              .populate('categoryId', 'slug name')
-              .populate('subcategoryId', 'slug name')
+              .populate('categoryIds', 'slug name')
               .exec();
             const ordered = ids
               .map((id) => items.find((p) => p._id.toString() === id))
@@ -272,8 +268,7 @@ export class DiscoveryService {
     const items = await this.playEventModel.aggregate(pipeline).exec();
     const docs = await this.podcastModel
       .find({ _id: { $in: items.map((p: { _id: Types.ObjectId }) => p._id) } })
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
 
     if (this.redis && docs.length > 0) {
@@ -327,8 +322,7 @@ export class DiscoveryService {
         .find({ status: 'published' })
         .sort({ createdAt: -1 })
         .limit(20)
-        .populate('categoryId', 'slug name')
-        .populate('subcategoryId', 'slug name')
+        .populate('categoryIds', 'slug name')
         .exec();
       return { items, total: items.length };
     }
@@ -336,8 +330,7 @@ export class DiscoveryService {
     const podcastIds = featured.map((f) => f.podcastId);
     const podcasts = await this.podcastModel
       .find({ _id: { $in: podcastIds }, status: 'published' })
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
 
     const podcastMap = new Map(
@@ -445,8 +438,7 @@ export class DiscoveryService {
 
     const docs = await this.podcastModel
       .find({ _id: { $in: slice }, status: 'published' })
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
 
     const orderedDocs = slice

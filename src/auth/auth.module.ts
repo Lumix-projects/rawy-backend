@@ -24,7 +24,6 @@ import { CreatorRoleGuard } from './guards/creator-role.guard';
 import { ListenerOrCreatorGuard } from './guards/listener-creator.guard';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../common/email/email.module';
-import { CategoriesModule } from '../categories/categories.module';
 import { UploadModule } from '../upload/upload.module';
 import {
   VerificationEmailProcessor,
@@ -64,7 +63,6 @@ export const THROTTLE_AUTH_SENSITIVE = { ttl: 3600000, limit: 3 };
     ]),
     forwardRef(() => UsersModule),
     EmailModule,
-    CategoriesModule,
     UploadModule,
   ],
   controllers: [AuthController],

@@ -47,16 +47,11 @@ export class PodcastsService {
       throw new BadRequestException('Cover image is required');
     }
 
-    const category = await this.categoriesService.findById(dto.categoryId);
-    if (!category) {
-      throw new BadRequestException('Invalid categoryId');
-    }
-
-    let subcategory = null;
-    if (dto.subcategoryId) {
-      subcategory = await this.categoriesService.findById(dto.subcategoryId);
-      if (!subcategory) {
-        throw new BadRequestException('Invalid subcategoryId');
+    // Validate all category IDs
+    for (const catId of dto.categoryIds) {
+      const cat = await this.categoriesService.findById(catId);
+      if (!cat) {
+        throw new BadRequestException(`Invalid category ID: ${catId}`);
       }
     }
 
@@ -72,8 +67,7 @@ export class PodcastsService {
       ownerId,
       title: dto.title.trim(),
       description: dto.description?.trim() || null,
-      categoryId: new Types.ObjectId(dto.categoryId),
-      subcategoryId: subcategory?._id ?? null,
+      categoryIds: dto.categoryIds.map((id) => new Types.ObjectId(id)),
       coverUrl: uploadResult.url,
       language: dto.language.trim(),
       tags: dto.tags ?? [],
@@ -104,7 +98,7 @@ export class PodcastsService {
         .sort({ updatedAt: -1 })
         .skip(options?.offset ?? 0)
         .limit(Math.min(options?.limit ?? 20, 100))
-        .populate('categoryId', 'slug name')
+        .populate('categoryIds', 'slug name')
         .exec(),
       this.podcastModel.countDocuments(filter).exec(),
     ]);
@@ -115,8 +109,7 @@ export class PodcastsService {
   async findById(id: string | Types.ObjectId): Promise<PodcastDocument | null> {
     return this.podcastModel
       .findById(id)
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
   }
 
@@ -140,18 +133,13 @@ export class PodcastsService {
 
     const { dto, cover } = input;
 
-    if (dto.categoryId) {
-      const category = await this.categoriesService.findById(dto.categoryId);
-      if (!category) {
-        throw new BadRequestException('Invalid categoryId');
-      }
-    }
-    if (dto.subcategoryId) {
-      const subcategory = await this.categoriesService.findById(
-        dto.subcategoryId,
-      );
-      if (!subcategory) {
-        throw new BadRequestException('Invalid subcategoryId');
+    // Validate category IDs if provided
+    if (dto.categoryIds && dto.categoryIds.length > 0) {
+      for (const catId of dto.categoryIds) {
+        const cat = await this.categoriesService.findById(catId);
+        if (!cat) {
+          throw new BadRequestException(`Invalid category ID: ${catId}`);
+        }
       }
     }
 
@@ -160,13 +148,10 @@ export class PodcastsService {
     if (dto.title !== undefined) updates.title = dto.title.trim();
     if (dto.description !== undefined)
       updates.description = dto.description?.trim() || null;
-    if (dto.categoryId !== undefined)
-      updates.categoryId = new Types.ObjectId(dto.categoryId);
-    if (dto.subcategoryId !== undefined) {
-      updates.subcategoryId = dto.subcategoryId
-        ? new Types.ObjectId(dto.subcategoryId)
-        : null;
-    }
+    if (dto.categoryIds !== undefined)
+      updates.categoryIds = dto.categoryIds.map(
+        (id) => new Types.ObjectId(id),
+      );
     if (dto.tags !== undefined) updates.tags = dto.tags;
     if (dto.explicit !== undefined) updates.explicit = dto.explicit;
     if (dto.episodeOrder !== undefined) updates.episodeOrder = dto.episodeOrder;
@@ -196,8 +181,7 @@ export class PodcastsService {
 
     const updated = await this.podcastModel
       .findByIdAndUpdate(id, { $set: updates }, { returnDocument: 'after' })
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
 
     if (!updated) {
@@ -226,8 +210,7 @@ export class PodcastsService {
   ): Promise<PodcastDocument | null> {
     return this.podcastModel
       .findOne({ _id: id, status: 'published' })
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
   }
 
@@ -240,8 +223,7 @@ export class PodcastsService {
     if (status) filter.status = status;
     return this.podcastModel
       .find(filter)
-      .populate('categoryId', 'slug name')
-      .populate('subcategoryId', 'slug name')
+      .populate('categoryIds', 'slug name')
       .exec();
   }
 }

@@ -49,14 +49,6 @@ export class RegisterCreatorDto {
   @MaxLength(100, { message: 'Show name must be at most 100 characters' })
   showName!: string;
 
-  @ApiProperty({
-    example: '507f1f77bcf86cd799439011',
-    description: 'ID of the category for your show',
-  })
-  @IsString()
-  @IsNotEmpty({ message: 'Category is required' })
-  categoryId!: string;
-
   @ApiPropertyOptional({
     type: 'string',
     format: 'binary',

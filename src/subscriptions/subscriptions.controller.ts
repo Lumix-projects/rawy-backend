@@ -24,31 +24,22 @@ function toPodcastResponse(
   doc: PodcastDocument,
   baseUrl: string,
 ): Record<string, unknown> {
-  const cat = doc.categoryId as unknown;
-  const category =
-    cat && typeof cat === 'object' && 'slug' in cat
-      ? {
-          id: (cat as { _id?: Types.ObjectId })._id?.toString(),
-          slug: (cat as { slug: string }).slug,
-          name: (cat as unknown as { name: string }).name,
-        }
-      : undefined;
-  const sub = doc.subcategoryId as unknown;
-  const subcategory =
-    sub && typeof sub === 'object' && sub && 'slug' in sub
-      ? {
-          id: (sub as { _id?: Types.ObjectId })._id?.toString(),
-          slug: (sub as { slug: string }).slug,
-          name: (sub as unknown as { name: string }).name,
-        }
-      : undefined;
+  const categories = (doc.categoryIds as unknown[])?.map((cat) => {
+    if (cat && typeof cat === 'object' && 'slug' in cat) {
+      return {
+        id: (cat as { _id?: Types.ObjectId })._id?.toString(),
+        slug: (cat as { slug: string }).slug,
+        name: (cat as unknown as { name: string }).name,
+      };
+    }
+    return cat?.toString();
+  }) ?? [];
   const timestamps = doc as { createdAt?: Date; updatedAt?: Date };
   return {
     id: doc._id.toString(),
     title: doc.title,
     description: doc.description,
-    category,
-    subcategory,
+    categories,
     coverUrl: doc.coverUrl,
     language: doc.language,
     tags: doc.tags,

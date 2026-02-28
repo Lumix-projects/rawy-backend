@@ -13,7 +13,6 @@ import * as bcrypt from 'bcrypt';
 
 export interface UpgradeCreatorInput {
   showName: string;
-  categoryId: string;
   avatar?: { buffer: Buffer; mimetype: string; size: number };
 }
 
@@ -28,7 +27,6 @@ export interface UpdateProfileInput {
 
 export interface UpdateCreatorProfileInput {
   showName?: string;
-  categoryId?: string;
 }
 
 @Injectable()
@@ -99,15 +97,6 @@ export class UsersService {
       if (creatorInput.showName !== undefined) {
         updates['creatorProfile.showName'] = creatorInput.showName.trim();
       }
-      if (creatorInput.categoryId !== undefined) {
-        const category = await this.categoriesService.findById(
-          creatorInput.categoryId,
-        );
-        if (!category) {
-          throw new BadRequestException('Invalid category');
-        }
-        updates['creatorProfile.category'] = category._id.toString();
-      }
     }
 
     const updatedUser = await this.usersRepository.updateById(userId, updates);
@@ -130,11 +119,6 @@ export class UsersService {
       throw new ForbiddenException('Already a Creator or Admin');
     }
 
-    const category = await this.categoriesService.findById(input.categoryId);
-    if (!category) {
-      throw new BadRequestException('Invalid category');
-    }
-
     let avatarUrl: string | null = null;
     if (input.avatar) {
       const result = await this.s3UploadService.uploadAvatar(input.avatar);
@@ -145,7 +129,6 @@ export class UsersService {
       role: 'creator',
       creatorProfile: {
         showName: input.showName.trim(),
-        category: category._id.toString(),
       },
     };
 

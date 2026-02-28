@@ -58,6 +58,9 @@ export class Episode {
   })
   status!: EpisodeStatus;
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
+  categoryIds!: Types.ObjectId[];
+
   @Prop({ type: Date, default: null })
   publishedAt!: Date | null;
 

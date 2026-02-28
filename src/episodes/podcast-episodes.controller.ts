@@ -21,6 +21,7 @@ import { PodcastsService } from '../podcasts/podcasts.service';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { UserDocument } from '../users/schemas/user.schema';
 import { EpisodeDocument } from './schemas/episode.schema';
+import { Types } from 'mongoose';
 
 const MAX_AUDIO_SIZE = 500 * 1024 * 1024;
 
@@ -34,6 +35,16 @@ function toEpisodeResponse(
     typeof pid === 'object' && pid && '_id' in pid
       ? (pid as { _id: { toString: () => string } })._id.toString()
       : String(pid);
+
+  const cats = (doc.categoryIds ?? []) as unknown as Array<{
+    _id: Types.ObjectId;
+    slug: string;
+    name: string;
+  }>;
+  const categories = cats
+    .filter((c) => c && typeof c === 'object' && 'slug' in c)
+    .map((c) => ({ id: c._id.toString(), slug: c.slug, name: c.name }));
+
   return {
     id: doc._id.toString(),
     podcastId: podcastIdStr,
@@ -46,6 +57,7 @@ function toEpisodeResponse(
     coverUrl: cover,
     chapterMarkers: doc.chapterMarkers,
     transcription: doc.transcription,
+    categories,
     status: doc.status,
     publishedAt: doc.publishedAt?.toISOString() ?? null,
     createdAt:

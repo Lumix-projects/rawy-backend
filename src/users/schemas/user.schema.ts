@@ -7,9 +7,6 @@ export type UserDocument = User & Document;
 export class CreatorProfile {
   @Prop({ required: true })
   showName!: string;
-
-  @Prop({ required: true })
-  category!: string; // Category ID or slug
 }
 
 const CreatorProfileSchema = SchemaFactory.createForClass(CreatorProfile);

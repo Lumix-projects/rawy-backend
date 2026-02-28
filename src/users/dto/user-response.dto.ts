@@ -35,10 +35,9 @@ export class UserResponseDto {
     nullable: true,
     properties: {
       showName: { type: 'string' },
-      categoryId: { type: 'string' },
     },
   })
-  creatorProfile!: { showName: string; categoryId: string } | null;
+  creatorProfile!: { showName: string } | null;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: string;
@@ -60,7 +59,6 @@ export interface UserResponse {
   isPrivate: boolean;
   creatorProfile?: {
     showName: string;
-    categoryId: string;
   } | null;
   createdAt: string;
 }
@@ -85,7 +83,6 @@ export function toUserResponse(user: UserDocument): UserResponse {
     creatorProfile: user.creatorProfile
       ? {
           showName: user.creatorProfile.showName,
-          categoryId: user.creatorProfile.category,
         }
       : null,
     createdAt:
@@ -102,7 +99,7 @@ export interface PublicUserResponse {
   avatarUrl: string | null;
   bio: string | null;
   socialLinks: { website?: string; twitter?: string; instagram?: string } | null;
-  creatorProfile: { showName: string; categoryId: string } | null;
+  creatorProfile: { showName: string } | null;
   createdAt: string;
 }
 
@@ -124,7 +121,6 @@ export function toPublicUserResponse(user: UserDocument): PublicUserResponse {
     creatorProfile: user.creatorProfile
       ? {
           showName: user.creatorProfile.showName,
-          categoryId: user.creatorProfile.category,
         }
       : null,
     createdAt:

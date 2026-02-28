@@ -16,35 +16,17 @@ interface PopulatedCategory {
 }
 
 function toPodcastResponse(doc: PodcastDocument, baseUrl: string) {
-  const cat = doc.categoryId as unknown;
-  const category =
-    cat && typeof cat === 'object' && 'slug' in cat
-      ? {
-          id: (cat as PopulatedCategory)._id?.toString(),
-          slug: (cat as PopulatedCategory).slug,
-          name: (cat as PopulatedCategory).name,
-        }
-      : undefined;
-  const sub = doc.subcategoryId as unknown;
-  const subcategory =
-    sub && typeof sub === 'object' && 'slug' in sub
-      ? {
-          id: (sub as PopulatedCategory)._id?.toString(),
-          slug: (sub as PopulatedCategory).slug,
-          name: (sub as PopulatedCategory).name,
-        }
-      : undefined;
+  const cats = (doc.categoryIds ?? []) as unknown as PopulatedCategory[];
+  const categories = cats
+    .filter((c) => c && typeof c === 'object' && 'slug' in c)
+    .map((c) => ({ id: c._id?.toString(), slug: c.slug, name: c.name }));
 
   return {
     id: doc._id.toString(),
     title: doc.title,
     description: doc.description,
-    category: category
-      ? { id: category.id, slug: category.slug, name: category.name }
-      : undefined,
-    subcategory: subcategory
-      ? { id: subcategory.id, slug: subcategory.slug, name: subcategory.name }
-      : undefined,
+    categories,
+    category: categories[0] ?? undefined,
     coverUrl: doc.coverUrl,
     language: doc.language,
     tags: doc.tags,
@@ -92,6 +74,13 @@ function toEpisodeResponse(
     coverUrl: cover ?? fallbackCover,
     chapterMarkers: doc.chapterMarkers,
     transcription: doc.transcription,
+    categories: ((doc.categoryIds ?? []) as unknown as Array<{
+      _id: Types.ObjectId;
+      slug: string;
+      name: string;
+    }>)
+      .filter((c) => c && typeof c === 'object' && 'slug' in c)
+      .map((c) => ({ id: c._id.toString(), slug: c.slug, name: c.name })),
     status: doc.status,
     publishedAt: doc.publishedAt?.toISOString() ?? null,
     createdAt:
@@ -127,14 +116,12 @@ export class DiscoveryController {
   @Public()
   async browse(
     @Query('categoryId') categoryId?: string,
-    @Query('subcategoryId') subcategoryId?: string,
     @Query('tags') tags?: string | string[],
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
     const { items, total } = await this.discoveryService.browse({
       categoryId,
-      subcategoryId,
       tags: this.parseTagsParam(tags),
       limit: limit ? Math.min(Number(limit), 100) : 20,
       offset: offset ? Number(offset) : 0,

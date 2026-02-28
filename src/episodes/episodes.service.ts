@@ -131,6 +131,9 @@ export class EpisodesService {
       coverUrl,
       transcription: dto.transcription?.trim() || null,
       chapterMarkers: dto.chapterMarkers ?? [],
+      categoryIds: (dto.categoryIds ?? []).map(
+        (id) => new Types.ObjectId(id),
+      ),
       status: effectiveStatus,
       publishedAt,
     });
@@ -177,6 +180,7 @@ export class EpisodesService {
         .sort({ publishedAt: -1, createdAt: -1 })
         .skip(options?.offset ?? 0)
         .limit(Math.min(options?.limit ?? 20, 100))
+        .populate('categoryIds', 'slug name')
         .exec(),
       this.episodeModel.countDocuments(filter).exec(),
     ]);
@@ -185,7 +189,11 @@ export class EpisodesService {
   }
 
   async findById(id: string | Types.ObjectId): Promise<EpisodeDocument | null> {
-    return this.episodeModel.findById(id).populate('podcastId').exec();
+    return this.episodeModel
+      .findById(id)
+      .populate('podcastId')
+      .populate('categoryIds', 'slug name')
+      .exec();
   }
 
   async findByIds(ids: Types.ObjectId[]): Promise<EpisodeDocument[]> {
@@ -193,6 +201,7 @@ export class EpisodesService {
     return this.episodeModel
       .find({ _id: { $in: ids } })
       .populate('podcastId')
+      .populate('categoryIds', 'slug name')
       .exec();
   }
 
@@ -236,6 +245,10 @@ export class EpisodesService {
       updates.transcription = dto.transcription?.trim() || null;
     if (dto.chapterMarkers !== undefined)
       updates.chapterMarkers = dto.chapterMarkers;
+    if (dto.categoryIds !== undefined)
+      updates.categoryIds = dto.categoryIds.map(
+        (id) => new Types.ObjectId(id),
+      );
 
     if (cover) {
       const coverResult = await this.coverUploadService.uploadCover(cover);

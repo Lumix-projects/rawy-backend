@@ -6,6 +6,7 @@ import {
   MinLength,
   MaxLength,
   IsEnum,
+  ArrayMinSize,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -19,12 +20,24 @@ export class CreatePodcastDto {
   @IsString()
   description?: string;
 
-  @IsString()
-  categoryId!: string;
-
-  @IsOptional()
-  @IsString()
-  subcategoryId?: string;
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [value];
+      } catch {
+        return value
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+      }
+    }
+    return Array.isArray(value) ? value : value ? [value] : [];
+  })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'At least one category is required' })
+  @IsString({ each: true })
+  categoryIds!: string[];
 
   @IsString()
   language!: string;

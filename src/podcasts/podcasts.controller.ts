@@ -44,42 +44,26 @@ function toPodcastResponse(
     episodeOrder: string;
     websiteUrl?: string | null;
     ownerId: Types.ObjectId;
-    categoryId: { slug: string; name: string } | Types.ObjectId;
-    subcategoryId?: { slug: string; name: string } | Types.ObjectId | null;
+    categoryIds?: Array<{ _id: Types.ObjectId; slug: string; name: string } | Types.ObjectId>;
     createdAt?: Date;
     updatedAt?: Date;
   },
   baseUrl: string,
 ) {
-  const category =
-    doc.categoryId && typeof doc.categoryId === 'object'
-      ? {
-          id: (doc.categoryId as { _id: Types.ObjectId })._id?.toString(),
-          slug: (doc.categoryId as { slug: string }).slug,
-          name: (doc.categoryId as { name: string }).name,
-        }
-      : undefined;
-  const subcategory =
-    doc.subcategoryId &&
-    typeof doc.subcategoryId === 'object' &&
-    doc.subcategoryId
-      ? {
-          id: (doc.subcategoryId as { _id: Types.ObjectId })._id?.toString(),
-          slug: (doc.subcategoryId as { slug: string }).slug,
-          name: (doc.subcategoryId as { name: string }).name,
-        }
-      : undefined;
+  const categories = (doc.categoryIds ?? [])
+    .filter((c) => c && typeof c === 'object' && 'slug' in c)
+    .map((c) => {
+      const cat = c as { _id: Types.ObjectId; slug: string; name: string };
+      return { id: cat._id?.toString(), slug: cat.slug, name: cat.name };
+    });
 
   return {
     id: doc._id.toString(),
     title: doc.title,
     description: doc.description,
-    category: category
-      ? { id: category.id, slug: category.slug, name: category.name }
-      : undefined,
-    subcategory: subcategory
-      ? { id: subcategory.id, slug: subcategory.slug, name: subcategory.name }
-      : undefined,
+    categories,
+    // backward compat: keep single category for older clients
+    category: categories[0] ?? undefined,
     coverUrl: doc.coverUrl,
     language: doc.language,
     tags: doc.tags,

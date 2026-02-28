@@ -105,8 +105,7 @@ export class SubscriptionsService {
       .populate({
         path: 'podcastId',
         populate: [
-          { path: 'categoryId', select: 'slug name' },
-          { path: 'subcategoryId', select: 'slug name' },
+          { path: 'categoryIds', select: 'slug name' },
         ],
       })
       .exec();
