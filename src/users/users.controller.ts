@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   Controller,
   Get,
@@ -38,6 +39,7 @@ import { toUserResponse, toPublicUserResponse } from './dto/user-response.dto';
 @ApiBearerAuth('bearerAuth')
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
@@ -133,6 +135,14 @@ export class UsersController {
     @Body() dto: UpgradeCreatorDto,
     @UploadedFile() avatar?: Express.Multer.File,
   ) {
+    try {
+      const ct = (req.headers['content-type'] ?? req.headers['Content-Type']) as string | undefined;
+      this.logger.log(`UpgradeCreator called - content-type: ${ct}`);
+      this.logger.log(`DTO payload: ${JSON.stringify({ showName: dto?.showName })}`);
+      this.logger.log(`Avatar present: ${!!avatar}, avatar size: ${avatar?.size ?? 'N/A'}`);
+    } catch (e) {
+      // ignore logging errors
+    }
     const user = await this.usersService.upgradeToCreator(req.user._id, {
       showName: dto.showName,
       avatar: avatar
