@@ -152,6 +152,9 @@ export class UsersController {
             size: avatar.size,
           }
         : undefined,
+    }).catch((err) => {
+      this.logger.error(`upgradeCreator error: ${err?.message ?? err}`, err?.stack);
+      throw err;
     });
     return toUserResponse(user);
   }
